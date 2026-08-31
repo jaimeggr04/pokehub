@@ -1,0 +1,225 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------------------------------------------------------------
+   Tokens de color. Se redefinen en .dark, y @theme inline los expone
+   como utilidades de Tailwind (bg-surface, text-muted, etc.).
+   --------------------------------------------------------------- */
+:root {
+  --bg: #f2e9e9;
+  --bg-elevated: #ffffff;
+  --surface: #dcd9d9;
+  --surface-2: #ffffff;
+  --border: #c9c2c2;
+  --text: #16121a;
+  --muted: #5d5560;
+  --brand: #d60a0a;
+  --brand-strong: #a80000;
+  --brand-fg: #ffffff;
+  --band: #0d0d0d;
+  --ring: #d60a0a4d;
+  --shadow: 0 4px 6px rgb(0 0 0 / 0.22);
+  --shadow-lg: 0 10px 24px rgb(0 0 0 / 0.24);
+  --inset: inset 0 4px 6px rgb(0 0 0 / 0.28), inset 0 -4px 6px rgb(0 0 0 / 0.08);
+
+  /* Pokéball (tema claro). Las marcas de Master Ball van en transparente. */
+  --ball-top-1: #ff4438;
+  --ball-top-2: #b70808;
+  --ball-bot-1: #ffffff;
+  --ball-bot-2: #cfcbd2;
+  --ball-core: #ffffff;
+  --ball-core-inner: #e9e6ee;
+  --ball-glow: #ff44384d;
+  --ball-mark: transparent;
+  --ball-mark-m: transparent;
+}
+
+.dark {
+  --bg: #17131d;
+  --bg-elevated: #221b2b;
+  --surface: #241d2e;
+  --surface-2: #2e2539;
+  --border: #3c3247;
+  --text: #f2eef7;
+  --muted: #a99fb6;
+  --brand: #8a4dff;
+  --brand-strong: #6f34e0;
+  --brand-fg: #ffffff;
+  --band: #060409;
+  --ring: #8a4dff59;
+  --shadow: 0 4px 10px rgb(0 0 0 / 0.5);
+  --shadow-lg: 0 12px 30px rgb(0 0 0 / 0.55);
+  --inset: inset 0 4px 8px rgb(0 0 0 / 0.55), inset 0 -3px 6px rgb(255 255 255 / 0.04);
+
+  /* Master Ball: mitad superior morada, marcas rosas y "M" blanca. */
+  --ball-top-1: #9d63ff;
+  --ball-top-2: #4b1d9e;
+  --ball-bot-1: #f6f3fc;
+  --ball-bot-2: #b9b0cc;
+  --ball-core: #ffffff;
+  --ball-core-inner: #e4dcf6;
+  --ball-glow: #a86bff66;
+  --ball-mark: #ff5fa8;
+  --ball-mark-m: #ffffff;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--border);
+  --color-ink: var(--text);
+  --color-muted: var(--muted);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-fg: var(--brand-fg);
+  --color-band: var(--band);
+
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+
+  --shadow-card: var(--shadow);
+  --shadow-float: var(--shadow-lg);
+  --shadow-pressed: var(--inset);
+
+  --radius-card: 0.75rem;
+}
+
+* { box-sizing: border-box; }
+
+html { color-scheme: light; }
+html.dark { color-scheme: dark; }
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color .35s ease, color .35s ease;
+  overflow-x: hidden;
+}
+
+/* Scrollbars discretas (el original las ocultaba del todo) */
+@media (pointer: fine) {
+  * { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  *::-webkit-scrollbar { width: 8px; height: 8px; }
+  *::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+}
+
+:where(a, button, input, textarea, select):focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------
+   Pokéball de la portada: la mitad superior es la cabecera roja,
+   la inferior el pie blanco y el círculo central el botón.
+
+   Estados: closed -> shaking -> opening -> open -> closing -> closed.
+   Abrir y cerrar usan curvas distintas a propósito: al abrir la bola
+   "salta" (ease-out con rebote) y al cerrar se junta de golpe (ease-in).
+   --------------------------------------------------------------- */
+.pokeball-half {
+  transition-property: height;
+  transition-duration: .85s;
+  transition-timing-function: cubic-bezier(.16, .84, .28, 1);
+}
+.pokeball-half[data-state='closing'] {
+  transition-duration: .6s;
+  transition-timing-function: cubic-bezier(.7, 0, .84, .3);
+}
+/* Mientras vibra, las mitades siguen juntas pero tiemblan con la bola. */
+.pokeball-half[data-state='shaking'] { animation: pokeball-nudge .9s ease-in-out; }
+
+@keyframes pokeball-nudge {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-5px); }
+  35% { transform: translateX(4px); }
+  55% { transform: translateX(-3px); }
+  75% { transform: translateX(2px); }
+}
+
+/* El botón se centra con `translate` (propiedad CSS) y anima con `transform`,
+   así el centrado y las animaciones no se pisan entre sí. */
+.pokeball-button {
+  translate: -50% -50%;
+  transition: transform .45s cubic-bezier(.34, 1.56, .64, 1),
+              opacity .45s ease,
+              filter .45s ease;
+  filter: drop-shadow(0 10px 22px rgb(0 0 0 / .45));
+}
+.pokeball-button:hover { transform: scale(1.07); }
+.pokeball-button:active { transform: scale(.93); }
+
+/* Al abrir: vibra, y al soltarse encoge hacia dentro con un destello. */
+.pokeball-button[data-state='shaking'] {
+  animation: pokeball-shake .9s cubic-bezier(.36, .07, .19, .97);
+}
+.pokeball-button[data-state='opening'],
+.pokeball-button[data-state='open'] {
+  transform: scale(0);
+  opacity: 0;
+  pointer-events: none;
+}
+/* Al cerrar vuelve a aparecer creciendo desde el centro. */
+.pokeball-button[data-state='closing'] {
+  animation: pokeball-return .6s cubic-bezier(.34, 1.56, .64, 1) both;
+}
+
+@keyframes pokeball-shake {
+  0%, 100% { transform: rotate(0) scale(1); }
+  10% { transform: rotate(-13deg) scale(1.03); }
+  25% { transform: rotate(11deg) scale(1.03); }
+  40% { transform: rotate(-9deg) scale(1.04); }
+  55% { transform: rotate(7deg) scale(1.04); }
+  70% { transform: rotate(-5deg) scale(1.06); }
+  85% { transform: rotate(3deg) scale(1.08); }
+}
+
+@keyframes pokeball-return {
+  from { transform: scale(0); opacity: 0; }
+  60%  { transform: scale(1.12); opacity: 1; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+/* Latido del punto central mientras la bola está cerrada. */
+@keyframes pokeball-core-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .45; }
+}
+.pokeball-core-dot { animation: pokeball-core-dot 2.4s ease-in-out infinite; }
+
+/* Destello que sale de la ranura justo al abrirse. */
+@keyframes pokeball-flash {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(.2); }
+  25%  { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(2.4); }
+}
+.pokeball-flash {
+  background: radial-gradient(circle, #fff 0%, var(--ball-glow) 45%, transparent 70%);
+  animation: pokeball-flash .8s ease-out forwards;
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+.animate-fade-up { animation: fade-up .5s cubic-bezier(.22,.61,.36,1) both; }
+
+@keyframes spin-ring { to { transform: rotate(360deg); } }
+.loader-ring {
+  border: 4px solid var(--brand);
+  border-bottom-color: transparent;
+  border-radius: 50%;
+  animation: spin-ring 1s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}

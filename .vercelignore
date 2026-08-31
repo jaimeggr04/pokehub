@@ -1,0 +1,5 @@
+# Las migraciones no hacen falta para construir la app; se aplican aparte
+# contra Supabase. La ruta va anclada con "/" a propósito: sin la barra inicial,
+# "supabase" también excluiría src/lib/supabase/ y el build se quedaría sin el
+# cliente.
+/supabase
