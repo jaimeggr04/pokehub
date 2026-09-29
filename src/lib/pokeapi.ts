@@ -105,8 +105,13 @@ function slimPokemon(raw: RawPokemon): RawPokemon {
   }
 }
 
-function getRawPokemon(idOrName: number | string) {
-  return get<RawPokemon>(`/pokemon/${idOrName}`, slimPokemon)
+async function getRawPokemon(idOrName: number | string) {
+  const raw = await get<RawPokemon>(`/pokemon/${idOrName}`, slimPokemon)
+  // Se guarda también por número: el creador pide cada especie por nombre al
+  // importar o al sortear, y luego su ficha la vuelve a pedir por id.
+  const byId = `/pokemon/${raw.id}`
+  if (!memory.has(byId)) memory.set(byId, raw)
+  return raw
 }
 
 const STAT_MAP: Record<string, keyof PokemonDetail['baseStats']> = {

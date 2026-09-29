@@ -10,11 +10,14 @@
   /* Distancia de la barra de guardar al borde: sobre la barra inferior del
      móvil y dejando sitio a la pokéball de "Crear", que sobresale 20 px. */
   --builder-savebar-gap: calc(var(--bottomnav-h) + env(safe-area-inset-bottom, 0px) + 1.75rem);
+  /* Fondo hundido de los grupos de píldoras: más oscuro que la tarjeta. */
+  --builder-groove: color-mix(in srgb, var(--text) 8%, var(--surface));
 }
 
 .dark {
   --builder-up: #ff7d95;
   --builder-down: #83b1ff;
+  --builder-groove: var(--bg);
 }
 
 @media (min-width: 48rem) {
@@ -338,7 +341,8 @@
     .builder-input:hover { border-color: color-mix(in srgb, var(--brand) 60%, var(--border)); }
   }
 
-  .builder-input:focus,
+  /* En campos de texto el anillo sale siempre al enfocar; en botones (variocolor), sólo con teclado. */
+  .builder-input:is(input, textarea):focus,
   .builder-input:focus-visible {
     border-color: var(--brand);
     outline: none;
@@ -370,8 +374,8 @@
     gap: .25rem;
     padding: .25rem;
     border-radius: .875rem;
-    background-color: var(--surface-2);
-    box-shadow: var(--inset);
+    background-color: var(--builder-groove);
+    box-shadow: inset 0 1px 3px rgb(0 0 0 / .16);
   }
 
   .builder-seg-option {
@@ -402,10 +406,11 @@
     .builder-seg-option > input:not(:checked) + span:hover { color: var(--text); }
   }
 
+  /* Elegida: en relieve y con el borde de marca, que se distinga en los dos temas. */
   .builder-seg-option > input:checked + span {
-    background-color: var(--bg-elevated);
+    background-color: var(--surface-2);
     color: var(--text);
-    box-shadow: var(--shadow);
+    box-shadow: var(--shadow), inset 0 0 0 1.5px color-mix(in srgb, var(--brand) 60%, transparent);
   }
 
   .builder-seg-option > input:focus-visible + span {
@@ -421,7 +426,16 @@
     text-align: left;
   }
 
-  .builder-seg-option > input:checked + span .builder-seg-icon {
+  .builder-seg[data-size='lg'] .builder-seg-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: .75rem;
+    background-color: color-mix(in srgb, var(--text) 8%, transparent);
+    color: var(--muted);
+    transition: background-color var(--dur) ease, color var(--dur) ease;
+  }
+
+  .builder-seg[data-size='lg'] .builder-seg-option > input:checked + span .builder-seg-icon {
     background-color: var(--brand);
     color: var(--brand-fg);
   }
@@ -444,6 +458,14 @@
   .builder-chip-row {
     -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
     mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
+  }
+
+  /* En md+ caben en dos líneas como mucho: sin scroll lateral ni difuminado. */
+  @media (min-width: 48rem) {
+    .builder-chip-row {
+      -webkit-mask-image: none;
+      mask-image: none;
+    }
   }
 
   .builder-chip {
@@ -665,4 +687,13 @@
 @keyframes builder-dirty {
   0%, 100% { opacity: 1; }
   50% { opacity: .35; }
+}
+
+/* Mientras se ve la barra de guardar (por debajo de lg), los avisos suben por
+   encima de ella: si no, la tapaban justo al confirmar que se ha guardado.
+   Fuera de capa, como la regla de .ph-toaster a la que corrige. */
+@media (width < 64rem) {
+  body:has(.builder-savebar) .ph-toaster {
+    bottom: calc(var(--builder-savebar-gap) + 4.5rem);
+  }
 }
