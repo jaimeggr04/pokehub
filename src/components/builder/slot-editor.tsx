@@ -190,6 +190,7 @@ export const SlotEditor = memo(function SlotEditor({
           <button
             id={headId}
             type="button"
+            data-slot-toggle
             aria-expanded={open}
             aria-controls={panelId}
             onClick={() => onToggle(slot.key)}

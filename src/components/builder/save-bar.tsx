@@ -25,7 +25,12 @@ function SaveIcon({ editing, pending }: { editing: boolean; pending: boolean }) 
 }
 
 /** Estado de guardado en una línea: cambios pendientes, error o todo al día. */
-function SaveStatus({ editing, dirty, filled, error, compact }: SaveProps & { compact?: boolean }) {
+function SaveStatus({
+  editing,
+  dirty,
+  error,
+  compact,
+}: Pick<SaveProps, 'editing' | 'dirty' | 'error'> & { compact?: boolean }) {
   if (error) {
     return (
       <span className="flex min-w-0 items-center gap-1.5 text-danger">

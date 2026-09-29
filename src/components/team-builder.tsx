@@ -298,7 +298,11 @@ export function TeamBuilder({
     setJustAdded(null)
 
     try {
-      const results = await randomTeam(count, new Set(keep.map((s) => s.pokemon_id)), dex).catch(() => [])
+      const results: (RandomBuild | null)[] = await randomTeam(
+        count,
+        new Set(keep.map((s) => s.pokemon_id)),
+        dex,
+      ).catch(() => [])
       const fresh = results.filter((b): b is RandomBuild => b !== null)
       if (fresh.length === 0) {
         toast('No se pudo generar el equipo', {

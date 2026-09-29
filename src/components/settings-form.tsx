@@ -673,6 +673,7 @@ function DeleteSection() {
     return { ...result, n: (prev.n ?? 0) + 1 }
   }, {})
   const triggerRef = useRef<HTMLButtonElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
   // Al cancelar, el foco vuelve al botón que abrió la confirmación.
   const returnFocus = useRef(false)
   const panelId = useId()
@@ -680,8 +681,14 @@ function DeleteSection() {
   // Mismo criterio que account.ts: sin espacios y sin distinguir mayúsculas.
   const matches = confirm.trim().toUpperCase() === CONFIRM_WORD
 
+  // Al abrir, al campo de confirmación; sin desplazar: con el panel aún a
+  // altura 0, el navegador movería su scroll interno y el contenido saltaría.
   useEffect(() => {
-    if (open || !returnFocus.current) return
+    if (open) {
+      inputRef.current?.focus({ preventScroll: true })
+      return
+    }
+    if (!returnFocus.current) return
     returnFocus.current = false
     triggerRef.current?.focus()
   }, [open])
@@ -739,6 +746,7 @@ function DeleteSection() {
                 Última comprobación: tus datos no se podrán recuperar.
               </p>
               <Field
+                ref={inputRef}
                 label={`Escribe ${CONFIRM_WORD} para confirmar`}
                 name="confirm"
                 value={confirm}
@@ -747,7 +755,6 @@ function DeleteSection() {
                 autoComplete="off"
                 autoCapitalize="characters"
                 spellCheck={false}
-                autoFocus
                 required
               />
               <InlineFeedback key={state.n} state={state} />

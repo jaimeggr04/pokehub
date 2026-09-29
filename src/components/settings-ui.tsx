@@ -145,7 +145,8 @@ export function CharCounter({ id, length, max }: { id: string; length: number; m
   )
 }
 
-type FieldProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, 'prefix'> & {
+// ComponentProps incluye `ref`: en React 19 llega como prop y el spread lo pasa al <input>.
+type FieldProps = Omit<React.ComponentProps<'input'>, 'prefix'> & {
   label: string
   hint?: React.ReactNode
   /** Texto de error bajo el campo; también marca aria-invalid. */

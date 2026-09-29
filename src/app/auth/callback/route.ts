@@ -62,7 +62,12 @@ export async function GET(request: NextRequest) {
       // redirigir aquí: basta con iniciar sesión en este navegador.
       return go(`/login?error=${otherBrowser ? 'other_browser' : 'callback'}`)
     }
-    if (data.redirectType === 'recovery') recoveredUserId = data.user?.id ?? null
+    // auth-js deduce el tipo del verificador PKCE que guardó al pedir el enlace
+    // (resetPasswordForEmail le añade "/recovery") y lo devuelve aunque el tipo
+    // de la respuesta no lo declare. Fiarse de `next` no bastaría: cualquiera
+    // podría añadirlo a mano a un canje de OAuth.
+    const { redirectType } = data as { redirectType?: string | null }
+    if (redirectType === 'recovery') recoveredUserId = data.user?.id ?? null
   } else if (tokenHash && type && EMAIL_OTP_TYPES.includes(type)) {
     const { data, error } = await supabase.auth.verifyOtp({
       type: type as EmailOtpType,

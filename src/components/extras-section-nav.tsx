@@ -158,7 +158,8 @@ function SectionRail({
   const List = numbered ? 'ol' : 'ul'
 
   return (
-    <nav aria-label={ariaLabel} className="extras-rail card p-2">
+    // layoutScroll: el carril puede tener scroll propio y la píldora tiene que tenerlo en cuenta.
+    <motion.nav layoutScroll aria-label={ariaLabel} className="extras-rail card p-2">
       {title && (
         <p className="px-3 pb-2 pt-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-muted">{title}</p>
       )}
@@ -209,7 +210,7 @@ function SectionRail({
         })}
       </List>
       {footer && <div className="mt-2 border-t border-line px-3 pb-2 pt-3 text-xs text-muted">{footer}</div>}
-    </nav>
+    </motion.nav>
   )
 }
 
@@ -246,7 +247,8 @@ function SectionChips({
       aria-label={ariaLabel}
       className="glass sticky top-[calc(var(--header-h)+8px)] z-20 mb-4 rounded-full border border-line p-1 shadow-float md:hidden"
     >
-      <ul ref={listRef} className="extras-chips no-scrollbar flex gap-1 overflow-x-auto">
+      {/* layoutScroll: la fila se desliza a la vez que la píldora cambia de chip. */}
+      <motion.ul ref={listRef} layoutScroll className="extras-chips no-scrollbar flex gap-1 overflow-x-auto">
         {items.map((item) => {
           const selected = item.id === active
           return (
@@ -282,7 +284,7 @@ function SectionChips({
             </li>
           )
         })}
-      </ul>
+      </motion.ul>
     </nav>
   )
 }

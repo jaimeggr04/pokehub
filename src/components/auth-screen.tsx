@@ -249,7 +249,7 @@ function BallFrame({
         {state === 'open' && (
           <>
             <span aria-hidden className="auth-glow" />
-            <section className="auth-card card">{children}</section>
+            <section className="auth-card">{children}</section>
           </>
         )}
       </main>
