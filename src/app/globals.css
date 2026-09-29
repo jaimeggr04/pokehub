@@ -12,6 +12,9 @@
 @import '../styles/search.css';
 @import '../styles/chat.css';
 @import '../styles/extras.css';
+@import '../styles/battle.css';
+@import '../styles/battle-detail.css';
+@import '../styles/battle-setup.css';
 
 @custom-variant dark (&:where(.dark, .dark *));
 

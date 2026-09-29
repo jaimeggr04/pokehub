@@ -156,3 +156,8 @@ export function statAt(
 export function maxInvest(format: Pick<BattleFormat, 'statPoints'>): number {
   return format.statPoints ? 32 : 252
 }
+
+/** Todas las especies del formato, para los selectores del modo manual. */
+export function allSpecies(gen: Gen): string[] {
+  return [...gen.species].map((s) => s.name).sort((a, b) => a.localeCompare(b))
+}
