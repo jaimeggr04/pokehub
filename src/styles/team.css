@@ -7,12 +7,30 @@
 @layer components {
   /* ---------- Cabecera ---------- */
 
+  /* El extremo claro del degradado (naranja en claro, lila en oscuro) queda
+     justo detrás del nombre y el autor: un velo del tono fuerte de marca lo
+     oscurece lo justo para que el texto blanco cumpla contraste sin enturbiar
+     el resto de la banda. */
   .team-hero-band {
+    --team-floor-x: 50%;
     position: relative;
     isolation: isolate;
     overflow: hidden;
-    background-image: var(--brand-gradient);
+    background-image:
+      linear-gradient(115deg, color-mix(in srgb, var(--brand-strong) 70%, transparent), transparent 65%),
+      var(--brand-gradient);
     color: #fff;
+  }
+
+  /* En escritorio la alineación va a la derecha del texto: la luz la sigue. */
+  @media (min-width: 64rem) {
+    .team-hero-band {
+      --team-floor-x: 70%;
+    }
+  }
+
+  .team-hero-text {
+    text-shadow: 0 1px 2px rgb(0 0 0 / 0.22);
   }
 
   /* Brillo de la esquina (el mismo gesto que la cabecera de la app) y un foco
@@ -31,7 +49,7 @@
   }
 
   .team-hero-band::after {
-    background: radial-gradient(55% 55% at 50% 108%, rgb(255 255 255 / 0.32), transparent 72%);
+    background: radial-gradient(55% 55% at var(--team-floor-x) 108%, rgb(255 255 255 / 0.32), transparent 72%);
   }
 
   .team-hero-ball {
@@ -649,6 +667,10 @@
    de una capa, estas excepciones perderían contra él. */
 
 /* Sobre el degradado de marca el anillo de marca no se vería. */
+.team-hero-band :focus-visible {
+  outline-color: #fff;
+}
+
 .team-lineup-link:focus-visible {
   outline-color: #fff;
   outline-offset: 0;

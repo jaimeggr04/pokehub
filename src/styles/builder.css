@@ -1,1 +1,614 @@
 /* Constructor e importador de equipos (builder). */
+
+:root {
+  /* Colores de la naturaleza: rojo lo que sube, azul lo que baja, como en
+     Showdown. Más oscuros en claro para que el texto tenga contraste. */
+  --builder-up: #c41d3f;
+  --builder-down: #1d5ad0;
+  /* Zona del slider que ya no cabe en los 508 EVs. */
+  --builder-over: color-mix(in srgb, var(--danger) 30%, transparent);
+  /* Distancia de la barra de guardar al borde: sobre la barra inferior del
+     móvil y dejando sitio a la pokéball de "Crear", que sobresale 20 px. */
+  --builder-savebar-gap: calc(var(--bottomnav-h) + env(safe-area-inset-bottom, 0px) + 1.75rem);
+}
+
+.dark {
+  --builder-up: #ff7d95;
+  --builder-down: #83b1ff;
+}
+
+@media (min-width: 48rem) {
+  /* En md+ no hay barra inferior: sólo el pie fijo de 36 px. */
+  :root { --builder-savebar-gap: 3.25rem; }
+}
+
+/* En la capa de componentes: las utilidades de Tailwind que se pongan en el
+   JSX siguen pudiendo sobrescribir estas reglas. */
+@layer components {
+  /* ------------------------------------------------------------------
+     Selector con sprites (entity-picker.tsx)
+     ------------------------------------------------------------------ */
+
+  .builder-picker-mark {
+    border-radius: 3px;
+    background-color: color-mix(in srgb, var(--brand) 22%, transparent);
+    color: inherit;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand) 22%, transparent);
+  }
+
+  /* ------------------------------------------------------------------
+     Columna lateral (lg+)
+     ------------------------------------------------------------------ */
+
+  /* Pegada bajo la pokéball que cuelga de la cabecera, como las del feed, y
+     como mucho hasta 16 px por encima del pie fijo. */
+  @media (min-width: 64rem) {
+    .builder-rail {
+      position: sticky;
+      top: calc(var(--header-h) + 40px);
+      max-height: calc(100dvh - var(--header-h) - 40px - 52px);
+      /* El margen negativo con padding deja sitio a las sombras, que el
+         overflow recortaría. */
+      margin: -6px;
+      padding: 6px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-width: thin;
+      scrollbar-color: transparent transparent;
+    }
+
+    .builder-rail:hover,
+    .builder-rail:focus-within {
+      scrollbar-color: var(--border) transparent;
+    }
+  }
+
+  /* ------------------------------------------------------------------
+     Panel del equipo: los seis huecos
+     ------------------------------------------------------------------ */
+
+  .builder-party-slot {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+    width: 100%;
+    padding: .25rem .25rem .375rem;
+    border-radius: 1rem;
+    background-color: var(--surface-2);
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    transition-property: translate, box-shadow, background-color;
+    transition-duration: var(--dur);
+    transition-timing-function: var(--ease-out-expo);
+  }
+
+  /* Plataforma bajo el Pokémon, como en los combates (y en las tarjetas del feed). */
+  .builder-party-stage {
+    position: relative;
+    display: grid;
+    place-items: center;
+    aspect-ratio: 1;
+  }
+
+  .builder-party-stage::before {
+    content: '';
+    position: absolute;
+    left: 18%;
+    right: 18%;
+    bottom: 10%;
+    height: 12%;
+    border-radius: 50%;
+    background-color: color-mix(in srgb, var(--text) 11%, transparent);
+  }
+
+  .builder-party-slot:active {
+    translate: 0 2px;
+    transition-duration: var(--dur-fast);
+  }
+
+  /* Hueco libre: sin plataforma, con borde discontinuo que invita a llenarlo. */
+  .builder-party-slot[data-empty] {
+    background-color: transparent;
+    box-shadow: inset 0 0 0 2px var(--border);
+    background-image: none;
+    color: var(--muted);
+  }
+
+  .builder-party-slot[data-empty] .builder-party-stage::before { display: none; }
+
+  /* El hueco que se está editando se queda hundido, como un botón pulsado. */
+  .builder-party-slot[aria-current='true'] {
+    translate: 0 2px;
+    background-color: color-mix(in srgb, var(--brand) 12%, var(--surface-2));
+    box-shadow: var(--inset), 0 0 0 2px var(--brand);
+    color: var(--text);
+  }
+
+  @media (hover: hover) {
+    .builder-party-slot:not([aria-current='true']):hover {
+      background-color: color-mix(in srgb, var(--brand) 7%, var(--surface-2));
+      box-shadow: var(--shadow-lg);
+    }
+
+    .builder-party-slot[data-empty]:not([aria-current='true']):hover {
+      background-color: var(--brand-soft);
+      box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--brand) 55%, transparent);
+      color: var(--brand);
+    }
+
+    .builder-party-slot:hover .builder-party-sprite { animation: builder-hop .52s var(--ease-out-expo); }
+  }
+
+  .builder-party-sprite {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    transform-origin: 50% 78%;
+  }
+
+  /* Pixelado sólo cuando el sprite se amplía; reducido, el suavizado se ve mejor. */
+  @media (min-width: 64rem) {
+    .builder-party-sprite { image-rendering: pixelated; }
+  }
+
+  /* Un Pokémon nuevo en el hueco sale de su Poké Ball: pequeño, rebota y se asienta. */
+  .builder-sprite-in {
+    animation: builder-sprite-in .5s var(--ease-spring) backwards;
+    animation-delay: calc(var(--s, 0) * 60ms);
+  }
+
+  /* Punto de aviso en la esquina del hueco (EVs de más, repetido…). */
+  .builder-party-dot {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: .625rem;
+    height: .625rem;
+    border-radius: 9999px;
+    box-shadow: 0 0 0 2px var(--surface-2);
+  }
+
+  /* ------------------------------------------------------------------
+     Barra de "PS": cuánto le falta a un build
+     ------------------------------------------------------------------ */
+
+  .builder-hp {
+    position: relative;
+    display: block;
+    height: .3125rem;
+    overflow: hidden;
+    border-radius: 9999px;
+    background-color: color-mix(in srgb, var(--text) 12%, transparent);
+  }
+
+  .builder-hp > span {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-color: var(--hp-color, var(--danger));
+    transform-origin: left center;
+    scale: var(--hp, 0) 1;
+    transition: scale var(--dur-slow) var(--ease-out-expo), background-color var(--dur) ease;
+  }
+
+  .builder-hp[data-tone='warning'] { --hp-color: var(--warning); }
+  .builder-hp[data-tone='success'] { --hp-color: var(--success); }
+
+  /* Progreso del equipo entero: degradado de marca. */
+  .builder-team-meter > span {
+    background-image: var(--brand-gradient);
+  }
+
+  /* ------------------------------------------------------------------
+     Editor de un hueco (acordeón)
+     ------------------------------------------------------------------ */
+
+  .builder-slot {
+    transition: border-color var(--dur) ease, box-shadow var(--dur) var(--ease-out-expo);
+  }
+
+  .builder-slot[data-open] {
+    border-color: color-mix(in srgb, var(--brand) 45%, var(--border));
+    box-shadow: var(--shadow-lg), 0 0 0 1px color-mix(in srgb, var(--brand) 25%, transparent);
+  }
+
+  /* La cabecera plegada es un botón grande: se marca al pasar sin moverla. */
+  .builder-slot-toggle {
+    border-radius: .875rem;
+    transition: background-color var(--dur) ease;
+  }
+
+  @media (hover: hover) {
+    .builder-slot:not([data-open]) .builder-slot-toggle:hover {
+      background-color: color-mix(in srgb, var(--text) 4%, transparent);
+    }
+  }
+
+  .builder-slot-chevron {
+    transition: rotate var(--dur-slow) var(--ease-spring);
+  }
+
+  .builder-slot[data-open] .builder-slot-chevron { rotate: 180deg; }
+
+  .builder-slot-sprite {
+    position: relative;
+    display: grid;
+    place-items: center;
+    background-color: var(--surface-2);
+    box-shadow: var(--shadow);
+  }
+
+  .builder-slot-sprite::before {
+    content: '';
+    position: absolute;
+    left: 20%;
+    right: 20%;
+    bottom: 12%;
+    height: 11%;
+    border-radius: 50%;
+    background-color: color-mix(in srgb, var(--text) 11%, transparent);
+  }
+
+  /* Encabezado de cada bloque del editor: pequeño, en versalitas. */
+  .builder-subhead {
+    display: flex;
+    align-items: center;
+    gap: .375rem;
+    margin-bottom: .625rem;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+
+  /* ------------------------------------------------------------------
+     Campos
+     ------------------------------------------------------------------ */
+
+  .builder-input {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: .75rem;
+    background-color: var(--surface-2);
+    color: var(--text);
+    outline: none;
+    transition: border-color var(--dur) ease, box-shadow var(--dur) var(--ease-out-expo);
+  }
+
+  .builder-input::placeholder { color: var(--muted); }
+
+  @media (hover: hover) {
+    .builder-input:hover { border-color: color-mix(in srgb, var(--brand) 60%, var(--border)); }
+  }
+
+  .builder-input:focus,
+  .builder-input:focus-visible {
+    border-color: var(--brand);
+    outline: none;
+    box-shadow: 0 0 0 4px var(--brand-soft);
+  }
+
+  .builder-input[aria-invalid='true'] {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 4px var(--danger-soft);
+  }
+
+  /* Números centrados sin las flechas nativas, que en 3 cifras no caben. */
+  .builder-number {
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }
+
+  .builder-number::-webkit-outer-spin-button,
+  .builder-number::-webkit-inner-spin-button {
+    margin: 0;
+    -webkit-appearance: none;
+  }
+
+  /* Grupo de opciones en píldora (género, visibilidad…) hecho con radios reales. */
+  .builder-seg {
+    display: flex;
+    gap: .25rem;
+    padding: .25rem;
+    border-radius: .875rem;
+    background-color: var(--surface-2);
+    box-shadow: var(--inset);
+  }
+
+  .builder-seg-option {
+    position: relative;
+    display: flex;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .builder-seg-option > span {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    align-items: center;
+    justify-content: center;
+    gap: .375rem;
+    min-height: 2.25rem;
+    padding: .25rem .5rem;
+    border-radius: .625rem;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color var(--dur) ease, color var(--dur) ease, box-shadow var(--dur) ease;
+  }
+
+  @media (hover: hover) {
+    .builder-seg-option > input:not(:checked) + span:hover { color: var(--text); }
+  }
+
+  .builder-seg-option > input:checked + span {
+    background-color: var(--bg-elevated);
+    color: var(--text);
+    box-shadow: var(--shadow);
+  }
+
+  .builder-seg-option > input:focus-visible + span {
+    outline: 2px solid var(--brand);
+    outline-offset: 1px;
+  }
+
+  /* Variante con icono y descripción (visibilidad del equipo). */
+  .builder-seg[data-size='lg'] .builder-seg-option > span {
+    justify-content: flex-start;
+    min-height: 3.5rem;
+    padding: .5rem .75rem;
+    text-align: left;
+  }
+
+  .builder-seg-option > input:checked + span .builder-seg-icon {
+    background-color: var(--brand);
+    color: var(--brand-fg);
+  }
+
+  /* Interruptor de variocolor: se ilumina con un destello al activarse. */
+  .builder-shiny[aria-pressed='true'] {
+    border-color: color-mix(in srgb, #f5b400 70%, var(--border));
+    background-color: color-mix(in srgb, #f5b400 16%, var(--surface-2));
+    color: var(--text);
+  }
+
+  .builder-shiny[aria-pressed='true'] svg {
+    color: #e0a100;
+    animation: ph-pop .45s var(--ease-spring);
+  }
+
+  .dark .builder-shiny[aria-pressed='true'] svg { color: #ffd23f; }
+
+  /* Fila de formatos sugeridos: se insinúa que sigue sin cortar en seco. */
+  .builder-chip-row {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
+  }
+
+  .builder-chip {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    height: 1.875rem;
+    padding-inline: .75rem;
+    border-radius: 9999px;
+    background-color: var(--surface-2);
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: inset 0 0 0 1px var(--border);
+    transition: background-color var(--dur) ease, color var(--dur) ease, box-shadow var(--dur) ease;
+  }
+
+  @media (hover: hover) {
+    .builder-chip:hover { color: var(--text); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 55%, var(--border)); }
+  }
+
+  .builder-chip[aria-pressed='true'] {
+    background-color: var(--brand-soft);
+    color: var(--brand);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 50%, transparent);
+  }
+
+  /* ------------------------------------------------------------------
+     Estadísticas: IVs, EVs y totales
+     ------------------------------------------------------------------ */
+
+  .builder-nature-up { color: var(--builder-up); }
+  .builder-nature-down { color: var(--builder-down); }
+
+  /* En móvil, dos líneas por estadística (números arriba, slider a todo el
+     ancho debajo); a partir de sm, todo en una fila. */
+  .builder-stat-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 3rem 3.5rem 2.75rem;
+    grid-template-areas:
+      'label iv ev total'
+      'range range range range';
+    align-items: center;
+    column-gap: .5rem;
+  }
+
+  @media (min-width: 40rem) {
+    .builder-stat-row {
+      grid-template-columns: 5.5rem 3rem minmax(0, 1fr) 3.5rem 2.75rem;
+      grid-template-areas: 'label iv range ev total';
+      column-gap: .625rem;
+    }
+  }
+
+  /* Reparto de los 508 EVs: un tramo del color de cada estadística. */
+  .builder-ev-budget {
+    display: flex;
+    height: .5rem;
+    overflow: hidden;
+    border-radius: 9999px;
+    background-color: color-mix(in srgb, var(--text) 10%, transparent);
+  }
+
+  .builder-ev-budget > span {
+    height: 100%;
+    background-color: var(--tint);
+    transition: flex-basis var(--dur-slow) var(--ease-out-expo);
+  }
+
+  .builder-ev-budget > span + span { box-shadow: inset 1px 0 0 var(--surface-2); }
+
+  .builder-ev-budget[data-over] {
+    box-shadow: 0 0 0 2px var(--danger);
+  }
+
+  /* Slider de EVs tintado con el color de su estadística. --fill es lo que
+     lleva y --cap hasta dónde puede subir sin pasarse de 508: lo de después
+     va rayado en rojo. */
+  .builder-range {
+    --fill: 0%;
+    --cap: 100%;
+    --track: color-mix(in srgb, var(--text) 13%, transparent);
+    --track-bg:
+      linear-gradient(90deg, transparent var(--cap), var(--builder-over) var(--cap)),
+      linear-gradient(90deg, var(--tint) var(--fill), transparent var(--fill)),
+      var(--track);
+    width: 100%;
+    height: 1.75rem;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .builder-range:focus-visible { outline: none; }
+
+  .builder-range::-webkit-slider-runnable-track {
+    height: .5rem;
+    border-radius: 9999px;
+    background: var(--track-bg);
+  }
+
+  .builder-range::-moz-range-track {
+    height: .5rem;
+    border-radius: 9999px;
+    background: var(--track-bg);
+  }
+
+  .builder-range::-webkit-slider-thumb {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-top: -.375rem;
+    border: 3px solid var(--tint);
+    border-radius: 9999px;
+    background-color: #fff;
+    box-shadow: 0 1px 3px rgb(0 0 0 / .3);
+    -webkit-appearance: none;
+    appearance: none;
+    transition: scale var(--dur) var(--ease-spring), box-shadow var(--dur) ease;
+  }
+
+  .builder-range::-moz-range-thumb {
+    box-sizing: border-box;
+    width: 1.25rem;
+    height: 1.25rem;
+    border: 3px solid var(--tint);
+    border-radius: 9999px;
+    background-color: #fff;
+    box-shadow: 0 1px 3px rgb(0 0 0 / .3);
+    transition: scale var(--dur) var(--ease-spring), box-shadow var(--dur) ease;
+  }
+
+  .builder-range:active::-webkit-slider-thumb { scale: 1.2; }
+  .builder-range:active::-moz-range-thumb { scale: 1.2; }
+
+  .builder-range:focus-visible::-webkit-slider-thumb {
+    box-shadow: 0 0 0 3px var(--bg-elevated), 0 0 0 5px var(--brand);
+  }
+
+  .builder-range:focus-visible::-moz-range-thumb {
+    box-shadow: 0 0 0 3px var(--bg-elevated), 0 0 0 5px var(--brand);
+  }
+
+  /* ------------------------------------------------------------------
+     Importador de Showdown
+     ------------------------------------------------------------------ */
+
+  .builder-import {
+    background-image:
+      radial-gradient(90% 120% at 100% 0%, var(--brand-soft), transparent 60%);
+  }
+
+  .builder-code {
+    tab-size: 2;
+    white-space: pre;
+    overflow-wrap: normal;
+  }
+
+  /* ------------------------------------------------------------------
+     «Sorpréndeme»
+     ------------------------------------------------------------------ */
+
+  @media (hover: hover) {
+    .builder-dice:hover:not(:disabled) svg { animation: builder-roll .7s var(--ease-spring); }
+  }
+
+  .builder-dice:focus-visible svg { animation: builder-roll .7s var(--ease-spring); }
+  .builder-dice[aria-busy='true'] svg { animation: builder-roll .9s var(--ease-in-out) infinite; }
+
+  /* ------------------------------------------------------------------
+     Barra de guardar (móvil y tableta)
+     ------------------------------------------------------------------ */
+
+  .builder-savebar {
+    bottom: var(--builder-savebar-gap);
+    transition:
+      translate var(--dur-slow) var(--ease-out-expo),
+      opacity var(--dur) ease;
+  }
+
+  /* Con el teclado virtual abierto la barra taparía el campo que se escribe:
+     se aparta mientras haya un texto enfocado. */
+  @media (pointer: coarse) {
+    .builder-root:has(:is(input:not([type='range'], [type='radio'], [type='checkbox']), textarea):focus) .builder-savebar {
+      translate: 0 calc(100% + var(--builder-savebar-gap));
+      opacity: 0;
+      pointer-events: none;
+    }
+  }
+
+  /* Punto de "cambios sin guardar": late despacio para que se vea sin molestar. */
+  .builder-dirty-dot {
+    animation: builder-dirty 2.4s ease-in-out infinite;
+  }
+}
+
+@keyframes builder-sprite-in {
+  0% { opacity: 0; transform: translateY(8px) scale(.4); }
+  60% { opacity: 1; transform: translateY(-3px) scale(1.08); }
+  100% { opacity: 1; transform: none; }
+}
+
+/* Salto con estirón al subir y aplastamiento al caer. */
+@keyframes builder-hop {
+  0%, 100% { transform: none; }
+  30% { transform: translateY(-7px) scale(.97, 1.05); }
+  55% { transform: translateY(0) scale(1.06, .94); }
+  75% { transform: translateY(-2px) scale(.99, 1.01); }
+}
+
+@keyframes builder-roll {
+  0% { transform: rotate(0) scale(1); }
+  40% { transform: rotate(200deg) scale(1.15); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+@keyframes builder-dirty {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .35; }
+}
