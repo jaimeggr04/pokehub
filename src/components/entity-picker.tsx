@@ -56,6 +56,8 @@ export function EntityPicker({
   allowClear = true,
   compact = false,
   loading = false,
+  autoOpen = false,
+  unknownOption,
 }: {
   label: string
   value: string
@@ -71,6 +73,18 @@ export function EntityPicker({
   compact?: boolean
   /** Las opciones aún se están descargando: esqueletos en vez de "sin resultados". */
   loading?: boolean
+  /**
+   * Al montarse: en la hoja (móvil) la abre ya; en escritorio sólo enfoca el
+   * campo, porque el desplegable se coloca según la posición del campo y la
+   * página puede estar aún desplazándose hasta él.
+   */
+  autoOpen?: boolean
+  /**
+   * Cómo pintar un valor que no está entre las opciones: la lista aún no ha
+   * llegado, o viene de una importación y no encaja con ninguna. Sin esto el
+   * campo parecería vacío teniendo un valor.
+   */
+  unknownOption?: (value: string) => PickerOption
 }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -95,7 +109,10 @@ export function EntityPicker({
   const listId = `${baseId}-list`
   const optionId = (i: number) => `${baseId}-opt-${i}`
 
-  const selected = useMemo(() => options.find((o) => o.value === value) ?? null, [options, value])
+  const selected = useMemo(() => {
+    if (!value) return null
+    return options.find((o) => o.value === value) ?? unknownOption?.(value) ?? { value, label: value }
+  }, [options, value, unknownOption])
 
   // Coincidencias: primero las que empiezan por la búsqueda, luego las que la
   // contienen. Así "char" ofrece Charmander antes que Fire Charm. Un número
@@ -206,6 +223,19 @@ export function EntityPicker({
     }
     setOpen(true)
   }
+
+  // Sólo al montarse: el creador lo pide al añadir un hueco nuevo.
+  const autoOpenRef = useRef(autoOpen)
+  const openRef = useRef(openPicker)
+  useEffect(() => {
+    openRef.current = openPicker
+  })
+  useEffect(() => {
+    if (!autoOpenRef.current) return
+    autoOpenRef.current = false
+    if (window.matchMedia('(min-width: 640px)').matches) triggerRef.current?.focus({ preventScroll: true })
+    else openRef.current()
+  }, [])
 
   function close(returnFocus: boolean) {
     setOpen(false)

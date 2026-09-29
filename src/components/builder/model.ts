@@ -5,6 +5,7 @@ import {
 } from '@/lib/pokemon'
 import type { BuildInput } from '@/app/actions/teams'
 import type { BuildRow, Gender } from '@/lib/database.types'
+import type { RandomBuild } from '@/lib/random-team'
 
 export const MAX_SLOTS = 6
 
@@ -71,6 +72,18 @@ export function slotFromBuild(b: BuildRow): Slot {
     moves: [b.moves[0] ?? '', b.moves[1] ?? '', b.moves[2] ?? '', b.moves[3] ?? ''],
     ivs: { hp: b.hp_ivs, atk: b.atk_ivs, def: b.def_ivs, spa: b.spa_ivs, spd: b.spd_ivs, spe: b.spe_ivs },
     evs: { hp: b.hp_evs, atk: b.atk_evs, def: b.def_evs, spa: b.spa_evs, spd: b.spd_evs, spe: b.spe_evs },
+  }
+}
+
+/** Un build de «Sorpréndeme» convertido en hueco. `key` permite reutilizar la de un hueco vacío. */
+export function slotFromRandom(b: RandomBuild, key = nextKey()): Slot {
+  return {
+    ...emptySlot(),
+    ...b,
+    key,
+    moves: [...b.moves],
+    ivs: { ...b.ivs },
+    evs: { ...b.evs },
   }
 }
 
@@ -201,4 +214,24 @@ export function natureShift(nature: string): { up: StatKey | null; down: StatKey
 /** EVs que quedan por repartir; negativo si el hueco se pasa del máximo. */
 export function evsLeft(slot: Pick<Slot, 'evs'>) {
   return MAX_EVS_TOTAL - evTotal(slot.evs)
+}
+
+/**
+ * Huella de lo que se guardaría. Si cambia respecto a la inicial hay cambios
+ * sin guardar. Los huecos vacíos no cuentan: tampoco se envían al guardar.
+ */
+export function teamSnapshot(team: {
+  name: string
+  format: string
+  description: string
+  isPublic: boolean
+  slots: Slot[]
+}) {
+  return JSON.stringify([
+    team.name.trim(),
+    team.format.trim(),
+    team.description.trim(),
+    team.isPublic,
+    team.slots.filter((s) => s.pokemon_id > 0).map(toInput),
+  ])
 }

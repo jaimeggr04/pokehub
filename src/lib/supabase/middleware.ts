@@ -1,7 +1,11 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PUBLIC_ROUTES = ['/', '/login', '/register', '/auth']
+// La recuperación de contraseña es pública pero, a diferencia de /login y
+// /register, no echa a quien ya tiene sesión: /reset-password se usa justo con
+// la sesión que abre el enlace, y desde Ajustes se manda a /forgot-password.
+const PUBLIC_ROUTES = ['/', '/login', '/register', '/auth', '/forgot-password', '/reset-password']
+const GUEST_ONLY_ROUTES = ['/login', '/register']
 
 // Manifest, iconos e imagen para compartir que genera Next (src/app/manifest.ts,
 // icon.tsx…). El navegador pide el manifest sin cookies y los rastreadores de
@@ -53,7 +57,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  if (user && (pathname === '/login' || pathname === '/register')) {
+  if (user && GUEST_ONLY_ROUTES.includes(pathname)) {
     const url = request.nextUrl.clone()
     url.pathname = '/home'
     url.search = ''

@@ -56,10 +56,10 @@ export function BuildCard({ build, index }: { build: BuildRow; index?: number })
         <div className="relative min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <h2 id={headingId} className="flex items-center gap-1.5 text-lg font-extrabold leading-tight">
+              <h3 id={headingId} className="flex items-center gap-1.5 text-lg font-extrabold leading-tight">
                 <span className="truncate">{name}</span>
                 <GenderMark gender={build.gender} size={16} />
-              </h2>
+              </h3>
               <p className="mt-0.5 min-h-4 truncate text-xs font-semibold text-muted">
                 {build.nickname && `${prettify(build.pokemon_name)} · `}
                 {dex && dexNumber(dex)}
@@ -154,9 +154,9 @@ function CompactStats({
   return (
     <section aria-labelledby={headingId}>
       <div className="mb-2 flex items-baseline justify-between gap-2">
-        <h3 id={headingId} className="text-xs font-bold uppercase tracking-wider text-muted">
+        <h4 id={headingId} className="text-xs font-bold uppercase tracking-wider text-muted">
           Estadísticas <span className="sr-only">de {name}</span>
-        </h3>
+        </h4>
         {species && (
           <span className="text-xs text-muted">
             Total base{' '}
@@ -222,5 +222,42 @@ function CompactStats({
         <SpreadLines build={build} className="mt-3 border-t border-line/70 pt-2.5" />
       </div>
     </section>
+  )
+}
+
+/** Esqueleto con la geometría de BuildCard, para loading.tsx: al llegar las fichas no salta nada. */
+export function BuildCardSkeleton({ index = 0 }: { index?: number }) {
+  return (
+    <div aria-hidden style={{ '--i': index } as React.CSSProperties} className="card stagger-item overflow-hidden">
+      <div className="flex items-center gap-3 border-b border-line p-3 sm:gap-4 sm:p-4">
+        <Skeleton className="size-24 shrink-0 rounded-full sm:size-28" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <Skeleton className="h-5 w-3/5 max-w-40 rounded-md" />
+          <Skeleton className="h-3 w-20 rounded-md" />
+          <div className="flex gap-1.5 pt-1">
+            <Skeleton className="h-5 w-11 rounded-md" />
+            <Skeleton className="h-5 w-14 rounded-md" />
+            <Skeleton className="h-5 w-14 rounded-md" />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4 p-3 sm:p-4">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <Skeleton className="col-span-2 h-[52px] sm:col-span-1 sm:h-[68px]" />
+          <Skeleton className="h-[68px]" />
+          <Skeleton className="h-[68px]" />
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {Array.from({ length: 4 }, (_, i) => (
+            <Skeleton key={i} className="h-11" />
+          ))}
+        </div>
+        <div>
+          <Skeleton className="mb-2 h-4 w-24 rounded-md" />
+          <Skeleton className="h-[200px] sm:h-[128px]" />
+        </div>
+      </div>
+    </div>
   )
 }

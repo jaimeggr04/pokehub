@@ -1,19 +1,26 @@
 'use client'
 
+import { useId } from 'react'
 import Link from 'next/link'
+import clsx from 'clsx'
 import { Command, Languages, Lightbulb, Swords } from 'lucide-react'
 import { openCommandPalette, useShortcutLabel } from '@/components/nav-links'
 import { searchHref } from '@/lib/search'
 
 const EXAMPLES = ['Garchomp', 'Mega Charizard X']
 
-/** Chuleta de la columna lateral: ejemplos que se pueden pulsar y el atajo de la paleta. */
-export function SearchTips() {
+/**
+ * Chuleta de búsqueda: ejemplos que se pueden pulsar y el atajo de la paleta.
+ * Va en la columna lateral y, por debajo de lg, al final de la página: el id
+ * del título es por instancia porque las dos conviven en el DOM.
+ */
+export function SearchTips({ className }: { className?: string }) {
   const shortcut = useShortcutLabel()
+  const titleId = useId()
 
   return (
-    <section aria-labelledby="search-tips-title" className="card p-4">
-      <h2 id="search-tips-title" className="flex items-center gap-2 text-sm font-bold">
+    <section aria-labelledby={titleId} className={clsx('card p-4', className)}>
+      <h2 id={titleId} className="flex items-center gap-2 text-sm font-bold">
         <Lightbulb size={16} aria-hidden className="text-warning" />
         Trucos para buscar
       </h2>
@@ -50,11 +57,12 @@ export function SearchTips() {
             <button type="button" onClick={openCommandPalette} className="search-tip-link">
               Abre la paleta de comandos
             </button>
+            {/* En táctil no hay teclado físico al que enseñarle el atajo. */}
             {shortcut && (
-              <>
+              <span className="pointer-coarse:hidden">
                 {' '}
                 con <kbd className="search-kbd">{shortcut}</kbd>
-              </>
+              </span>
             )}{' '}
             para buscar desde cualquier página.
           </span>

@@ -255,12 +255,16 @@ export function Comments({
   )
 }
 
+// `ref` lo pone AnimatePresence (popLayout) para medir el comentario que sale y
+// sacarlo del flujo; sin reenviarlo al <li>, el hueco se quedaría hasta el final.
 function CommentRow({
+  ref,
   comment,
   mine,
   byTeamAuthor,
   onDelete,
 }: {
+  ref?: React.Ref<HTMLLIElement>
   comment: CommentItem
   mine: boolean
   byTeamAuthor: boolean
@@ -271,6 +275,7 @@ function CommentRow({
 
   return (
     <motion.li
+      ref={ref}
       layout
       initial={{ opacity: 0, y: 14, scale: 0.97 }}
       animate={{ opacity: optimistic ? 0.6 : 1, y: 0, scale: 1 }}

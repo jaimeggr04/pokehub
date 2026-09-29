@@ -648,40 +648,96 @@ function StatsCard({ ready, className }: { ready: Analyzed[]; className?: string
 
 /* ---------- Estados de carga ---------- */
 
+// Misma geometría que la vista completa (18 filas de tabla incluidas): si se
+// llega a #comentarios desde el feed, lo que carga aquí encima no mueve la página.
 function AnalysisSkeleton({ columns }: { columns: number }) {
+  const cols = Math.max(1, Math.min(columns, 6))
+
   return (
-    <div role="status" className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] lg:items-start">
+    <div role="status" className="flex flex-col gap-4">
       <span className="sr-only">Analizando el equipo…</span>
-      <div aria-hidden className="card p-4 sm:p-5 lg:col-start-2 lg:row-start-1">
-        <Skeleton className="mb-4 h-5 w-32 rounded-md" />
-        <div className="flex flex-wrap gap-1.5">
-          {Array.from({ length: 5 }, (_, i) => (
-            <Skeleton key={i} className="h-8 w-24 rounded-full" />
-          ))}
+      <div aria-hidden className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] lg:items-start">
+        <div className="card p-4 sm:p-5 lg:col-start-2 lg:row-start-1">
+          <SkeletonTitle aside="h-7 w-36 rounded-full" />
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-1">
+            {[0, 1].map((group) => (
+              <div key={group}>
+                <Skeleton className="mb-2 h-5 w-44 rounded-md" />
+                <div className="flex flex-wrap gap-1.5">
+                  {Array.from({ length: 4 }, (_, i) => (
+                    <Skeleton key={i} className="h-8 w-[5.5rem] rounded-full" />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
-      <div aria-hidden className="card p-4 sm:p-5 lg:col-start-1 lg:row-span-3 lg:row-start-1">
-        <Skeleton className="mb-4 h-5 w-40 rounded-md" />
-        <div className="flex flex-col gap-2 overflow-hidden">
-          {Array.from({ length: 9 }, (_, r) => (
-            <div key={r} className="flex gap-1.5">
-              <Skeleton className="h-7 w-[4.5rem] shrink-0 rounded-md" />
-              {Array.from({ length: Math.min(columns, 6) }, (_, c) => (
-                <Skeleton key={c} className="h-7 w-9 shrink-0 rounded-lg" />
+
+        <div className="card overflow-hidden lg:col-start-1 lg:row-span-3 lg:row-start-1">
+          <div className="px-4 pt-4 sm:px-5 sm:pt-5">
+            <SkeletonTitle />
+          </div>
+          <div className="overflow-hidden px-3 pb-1 sm:px-5">
+            <div className="flex items-center gap-1 border-b border-line pb-1">
+              <span className="w-[4.5rem] shrink-0" />
+              {Array.from({ length: cols }, (_, c) => (
+                <Skeleton key={c} className="size-10 shrink-0 rounded-full" />
               ))}
             </div>
-          ))}
+            <div className="flex flex-col gap-2 pt-1">
+              {Array.from({ length: 18 }, (_, r) => (
+                <div key={r} className="flex items-center gap-1">
+                  <Skeleton className="h-[30px] w-[4.5rem] shrink-0 rounded-md" />
+                  {Array.from({ length: cols }, (_, c) => (
+                    <Skeleton key={c} className="h-[30px] w-10 shrink-0 rounded-lg" />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-line px-4 py-3 sm:px-5">
+            {Array.from({ length: 5 }, (_, i) => (
+              <Skeleton key={i} className="h-5 w-20 rounded-md" />
+            ))}
+          </div>
+        </div>
+
+        <div className="card p-4 sm:p-5 lg:col-start-2 lg:row-start-2">
+          <SkeletonTitle aside="h-7 w-32 rounded-full" />
+          <div className="flex flex-col gap-3">
+            {Array.from({ length: cols }, (_, i) => (
+              <div key={i} className="flex items-center gap-2.5">
+                <Skeleton className="size-9 shrink-0 rounded-full" />
+                <Skeleton className="h-2.5 flex-1 rounded-full" />
+                <Skeleton className="h-4 w-8 shrink-0 rounded-md" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="card p-4 sm:p-5 lg:col-start-2 lg:row-start-3">
+          <SkeletonTitle aside="h-4 w-28 rounded-md" />
+          <div className="flex flex-col gap-2">
+            {Array.from({ length: 6 }, (_, i) => (
+              <Skeleton key={i} className="h-5 rounded-md" />
+            ))}
+          </div>
+          <div className="mt-4 flex gap-1.5">
+            <Skeleton className="h-7 w-28 rounded-full" />
+            <Skeleton className="h-7 w-32 rounded-full" />
+          </div>
         </div>
       </div>
-      <div aria-hidden className="card flex flex-col gap-3 p-4 sm:p-5 lg:col-start-2 lg:row-start-2">
-        <Skeleton className="mb-1 h-5 w-28 rounded-md" />
-        {Array.from({ length: Math.min(columns, 6) }, (_, i) => (
-          <div key={i} className="flex items-center gap-2.5">
-            <Skeleton className="size-9 shrink-0 rounded-full" />
-            <Skeleton className="h-2.5 flex-1 rounded-full" />
-          </div>
-        ))}
-      </div>
+      <Skeleton className="mx-1 h-8 max-w-xl rounded-md" />
+    </div>
+  )
+}
+
+function SkeletonTitle({ aside }: { aside?: string }) {
+  return (
+    <div className="mb-4 flex h-7 items-center justify-between gap-2">
+      <Skeleton className="h-5 w-36 rounded-md" />
+      {aside && <Skeleton className={aside} />}
     </div>
   )
 }

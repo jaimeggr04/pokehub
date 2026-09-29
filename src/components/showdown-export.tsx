@@ -14,7 +14,8 @@ export function slugify(text: string) {
   return (
     text
       .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
+      // Quita tildes y diéresis (marcas combinables tras NFD), como slug() en lib/showdown.
+      .replace(/\p{M}/gu, '')
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '')
