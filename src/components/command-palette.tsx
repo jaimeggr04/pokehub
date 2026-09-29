@@ -316,7 +316,7 @@ function PaletteDialog({ username, onClose }: { username: string; onClose: () =>
 
   const navCommands: Command[] = [
     { id: 'nav-home', group: 'nav', label: 'Inicio', hint: 'Los últimos equipos de la comunidad', icon: Home, keywords: 'feed portada home equipos', badge: here('/home'), perform: navigate('/home') },
-    { id: 'nav-search', group: 'nav', label: 'Buscar entrenadores', hint: 'Encuentra y sigue a otros entrenadores', icon: Search, keywords: 'usuarios gente perfiles seguir amigos', badge: here('/search'), perform: navigate('/search') },
+    { id: 'nav-search', group: 'nav', label: 'Buscar', hint: 'Entrenadores, equipos y Pokémon', icon: Search, keywords: 'usuarios gente perfiles seguir amigos equipos pokemon', badge: here('/search'), perform: navigate('/search') },
     { id: 'nav-new', group: 'nav', label: 'Crear equipo', hint: 'Monta un equipo nuevo desde cero', icon: PlusCircle, keywords: 'nuevo builder team constructor montar', badge: here('/team/new'), perform: navigate('/team/new') },
     {
       id: 'nav-messages',

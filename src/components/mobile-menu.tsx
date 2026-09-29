@@ -93,7 +93,7 @@ export function MobileMenu({
 
   const nav: Entry[] = [
     { href: '/home', icon: Home, label: 'Inicio' },
-    { href: '/search', icon: Search, label: 'Buscar entrenadores' },
+    { href: '/search', icon: Search, label: 'Buscar' },
     { href: '/team/new', icon: PlusCircle, label: 'Crear equipo' },
     { href: '/messages', icon: MessageSquare, label: 'Mensajes' },
     { href: `/u/${username}`, icon: User, label: 'Mi perfil' },
