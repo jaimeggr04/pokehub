@@ -53,12 +53,12 @@ export const CATEGORY: Record<'Physical' | 'Special' | 'Status', { label: string
 /* ------------------------------------------------------------------ */
 
 export const STATUS: Record<Exclude<StatusId, ''>, { short: string; long: string }> = {
-  brn: { short: 'QUE', long: 'Quemado: su ataque físico hace la mitad' },
+  brn: { short: 'QUEM', long: 'Quemado: su ataque físico hace la mitad' },
   par: { short: 'PAR', long: 'Paralizado: velocidad a la mitad y a veces no se mueve' },
   psn: { short: 'ENV', long: 'Envenenado' },
-  tox: { short: 'TOX', long: 'Gravemente envenenado' },
+  tox: { short: 'TÓX', long: 'Gravemente envenenado' },
   slp: { short: 'DOR', long: 'Dormido' },
-  frz: { short: 'CON', long: 'Congelado' },
+  frz: { short: 'CONG', long: 'Congelado' },
 }
 
 export function StatusChip({ status, className }: { status: StatusId | undefined; className?: string }) {

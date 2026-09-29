@@ -1,38 +1,19 @@
-import { Field, Move, Pokemon, calculate, toID } from '@smogon/calc'
 import type { BattleFormat } from '@/lib/battle/formats'
 import { genFor, moveInfo, speciesInfo } from '@/lib/battle/dex'
-import { calcDamage, koLabel, type DamageResult, type FieldState, type MonSet, type SideConditions } from '@/lib/battle/calc'
+import { calcDamage, type DamageResult, type FieldState, type MonSet } from '@/lib/battle/calc'
 import { effectiveness, formatMultiplier, isAttackType, type Effectiveness } from '@/lib/type-chart'
 
 /*
  * Utilidades de la calculadora y las fichas de detalle: el cálculo con golpe
- * crítico (calcDamage no lo expone) y los textos en lenguaje llano que se leen
- * de un vistazo en mitad de un turno.
+ * crítico y los textos en lenguaje llano que se leen de un vistazo en mitad
+ * de un turno.
  */
 
 /* ------------------------------------------------------------------ */
 /* Cálculo con crítico                                                  */
 /* ------------------------------------------------------------------ */
 
-function side(c?: SideConditions) {
-  return {
-    isReflect: c?.reflect,
-    isLightScreen: c?.lightScreen,
-    isAuroraVeil: c?.auroraVeil,
-    isTailwind: c?.tailwind,
-    isHelpingHand: c?.helpingHand,
-    isFriendGuard: c?.friendGuard,
-  }
-}
-
-const round1 = (n: number) => Math.round(n * 10) / 10
-
-/**
- * Igual que `calcDamage`, pero con la opción de golpe crítico. Sin crítico
- * delega en `calcDamage` para que los números coincidan con el resto del
- * asistente; con crítico repite su montaje con `isCrit`.
- * TODO: si calcDamage acepta `{ crit }`, esto se reduce a una llamada.
- */
+/** `calcDamage` con la opción de golpe crítico. */
 export function damageWith(
   format: BattleFormat,
   attacker: MonSet,
@@ -41,74 +22,7 @@ export function damageWith(
   field: FieldState = {},
   crit = false,
 ): DamageResult | null {
-  if (!crit) return calcDamage(format, attacker, defender, moveName, field)
-  const gen = genFor(format)
-  if (!gen.moves.get(toID(moveName))) return null
-  try {
-    const make = (set: MonSet) => {
-      const p = new Pokemon(gen, set.species, {
-        level: format.level,
-        nature: set.nature || 'Serious',
-        evs: set.invest,
-        ivs: format.statPoints ? undefined : { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 },
-        ability: set.ability || undefined,
-        item: set.item || undefined,
-        teraType: format.tera && set.tera && set.teraType ? (set.teraType as never) : undefined,
-        boosts: set.boosts,
-        status: (set.status || '') as never,
-      })
-      if (set.hpPercent !== undefined) p.originalCurHP = Math.max(1, Math.round((p.maxHP() * set.hpPercent) / 100))
-      return p
-    }
-    const a = make(attacker)
-    const d = make(defender)
-    const move = new Move(gen, moveName, { isCrit: true })
-    const result = calculate(
-      gen,
-      a,
-      d,
-      move,
-      new Field({
-        gameType: format.gameType === 'doubles' ? 'Doubles' : 'Singles',
-        weather: (field.weather || undefined) as never,
-        terrain: (field.terrain || undefined) as never,
-        attackerSide: side(field.attackerSide),
-        defenderSide: side(field.defenderSide),
-      }),
-    )
-    const [min, max] = result.range()
-    const maxHP = d.maxHP()
-    const minPercent = round1((min / maxHP) * 100)
-    const maxPercent = round1((max / maxHP) * 100)
-    let hits = 0
-    let chance = 0
-    if (max > 0) {
-      const ko = result.kochance(false)
-      hits = ko.n ?? 0
-      chance = ko.chance ?? 0
-    }
-    const remaining = defender.hpPercent ?? 100
-    let desc = ''
-    try {
-      desc = result.desc()
-    } catch {
-      // Movimientos de estado: no hay descripción.
-    }
-    return {
-      move: move.name,
-      moveType: move.type,
-      category: move.category,
-      minPercent,
-      maxPercent,
-      hits,
-      chance,
-      label: koLabel(hits, chance, maxPercent),
-      killsNow: minPercent >= remaining ? 'yes' : maxPercent >= remaining ? 'maybe' : 'no',
-      desc,
-    }
-  } catch {
-    return null
-  }
+  return calcDamage(format, attacker, defender, moveName, field, { crit })
 }
 
 /** Todos los ataques de `moves` contra el defensor, del que más hace al que menos (sin los de estado). */

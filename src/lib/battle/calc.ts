@@ -111,13 +111,14 @@ export function calcDamage(
   defender: MonSet,
   moveName: string,
   field: FieldState = {},
+  opts: { crit?: boolean } = {},
 ): DamageResult | null {
   const gen = genFor(format)
   if (!gen.moves.get(toID(moveName))) return null
   try {
     const a = makePokemon(gen, format, attacker)
     const d = makePokemon(gen, format, defender)
-    const move = new Move(gen, moveName, { isCrit: false })
+    const move = new Move(gen, moveName, { isCrit: Boolean(opts.crit) })
     const result = calculate(
       gen,
       a,

@@ -61,6 +61,10 @@ export function BottomSheet({
     const frame = requestAnimationFrame(() => panelRef.current?.focus({ preventScroll: true }))
 
     function onKeyDown(e: KeyboardEvent) {
+      // Con una hoja abierta encima de otra (un selector dentro de una ficha),
+      // sólo manda la de arriba: los portales se añaden al final del body.
+      const dialogs = document.querySelectorAll('[role="dialog"][aria-modal="true"]')
+      if (dialogs.length > 1 && dialogs[dialogs.length - 1] !== panelRef.current) return
       if (e.key === 'Escape') {
         e.stopPropagation()
         onCloseRef.current()
