@@ -91,6 +91,24 @@
   }
   .auth-bottom[data-expanded]::before { opacity: 0; }
 
+  /* Aviso legal: fijo al pie, con la bola abierta es todo lo que queda de la
+     mitad inferior. */
+  .auth-legal {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: calc(2.5rem - 2px);
+    padding-inline: 1rem;
+    font-size: 11px;
+    line-height: 1;
+    color: var(--muted);
+  }
+  .auth-legal > p { max-width: 100%; }
+
   /* Barra de la cabecera: misma altura y márgenes que la de la app, así el
      logo no salta al entrar. Se ancla arriba y no se mueve al abrir la bola. */
   .auth-bar {
@@ -148,7 +166,7 @@
 
   .auth-hero-title {
     max-width: 16ch;
-    font-size: clamp(1.875rem, 3.4vw + 1rem, 4rem);
+    font-size: clamp(1.875rem, 2.8vw + 1rem, 3.5rem);
     font-weight: 800;
     line-height: 1.08;
     letter-spacing: -.02em;
@@ -276,9 +294,9 @@
     position: absolute;
     left: 50%;
     bottom: calc(var(--ball) / 2 + 1.75rem);
-    width: clamp(7rem, 22vw, 17rem);
+    width: clamp(9rem, 30vw, 24rem);
     height: auto;
-    opacity: .16;
+    opacity: .1;
     translate: -50% 0;
   }
 
