@@ -1,0 +1,521 @@
+/* Efectos y detalles extra: confeti, sorpresas y easter eggs (extras). */
+
+@layer components {
+  /* ------------------------------------------------------------------
+     Pantallas de estado (404 y error)
+     ------------------------------------------------------------------ */
+
+  /* Mancha de marca detrás del contenido: el mismo degradado que las
+     cabeceras de equipo, muy difuminado para no competir con el texto. */
+  .extras-status-glow {
+    position: absolute;
+    left: 50%;
+    top: -18rem;
+    width: min(56rem, 140vw);
+    height: 34rem;
+    translate: -50% 0;
+    border-radius: 50%;
+    background-image: var(--brand-gradient);
+    opacity: 0.16;
+    filter: blur(70px);
+    pointer-events: none;
+  }
+
+  .dark .extras-status-glow {
+    opacity: 0.22;
+  }
+
+  /* Cifras gigantes del 404: degradado de marca con un contorno oscuro que
+     les da peso sobre el fondo rosado del tema claro. */
+  .extras-digit {
+    font-size: clamp(5.5rem, 24vw, 10rem);
+    font-weight: 800;
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+    background-image: var(--brand-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 6px 0 color-mix(in srgb, var(--band) 22%, transparent));
+  }
+
+  /* Hierba alta al pie de la pantalla. Una mata se agita de vez en cuando:
+     algo se esconde ahí dentro. */
+  .extras-grass {
+    color: color-mix(in srgb, #3fa34d 70%, var(--bg));
+  }
+
+  .dark .extras-grass {
+    color: color-mix(in srgb, #2e7d3a 55%, var(--bg));
+  }
+
+  .extras-grass-rustle {
+    transform-origin: 50% 100%;
+    animation: extras-rustle 4.2s ease-in-out infinite;
+  }
+
+  /* ------------------------------------------------------------------
+     Encuentro variocolor
+     ------------------------------------------------------------------ */
+
+  /* Escenario del encuentro: cielo arriba y pradera abajo, como el fondo de
+     un combate. De noche en el tema oscuro. */
+  .extras-stage {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    background:
+      radial-gradient(55% 45% at 50% 46%, rgb(255 236 150 / 0.55), transparent 72%),
+      linear-gradient(180deg, #8fd0ff 0%, #d4f1ff 60%, #8fd57c 60%, #5cb453 100%);
+  }
+
+  .dark .extras-stage {
+    background:
+      radial-gradient(55% 45% at 50% 46%, rgb(196 160 255 / 0.4), transparent 72%),
+      linear-gradient(180deg, #120c2b 0%, #33246b 60%, #2d6a3a 60%, #1c4a26 100%);
+  }
+
+  /* Rayos girando detrás del Pokémon. */
+  .extras-rays {
+    position: absolute;
+    inset: -40%;
+    z-index: -1;
+    background: repeating-conic-gradient(from 0deg, rgb(255 255 255 / 0.28) 0deg 9deg, transparent 9deg 24deg);
+    mask-image: radial-gradient(circle at 50% 50%, #000 0%, transparent 55%);
+    animation: ph-spin 18s linear infinite;
+  }
+
+  /* Plataforma de combate bajo los pies. */
+  .extras-platform {
+    position: absolute;
+    left: 50%;
+    bottom: 13%;
+    width: 62%;
+    height: 14%;
+    translate: -50% 0;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgb(0 0 0 / 0.28), rgb(0 0 0 / 0.08) 70%, transparent);
+  }
+
+  /* Destellos que parpadean alrededor, cada uno a su ritmo (--d) y en su sitio (--x, --y). */
+  .extras-sparkle {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    width: var(--s, 14px);
+    height: var(--s, 14px);
+    color: #fff6b0;
+    filter: drop-shadow(0 0 6px rgb(255 240 150 / 0.9));
+    opacity: 0;
+    animation: extras-twinkle 1.8s ease-in-out infinite;
+    animation-delay: var(--d, 0s);
+  }
+
+  .extras-art {
+    filter: drop-shadow(0 10px 14px rgb(0 0 0 / 0.28));
+    animation: extras-appear 0.9s var(--ease-out-expo) backwards;
+  }
+
+  /* Al lanzar la bola el Pokémon se vuelve luz y entra en ella. */
+  [data-phase='throwing'] .extras-art,
+  [data-phase='caught'] .extras-art {
+    animation: extras-absorb 0.55s var(--ease-in-out) forwards;
+  }
+
+  .extras-ball {
+    animation:
+      extras-ball-drop 0.6s var(--ease-out-expo) 0.35s backwards,
+      ph-catch 2.4s ease-in-out 0.95s;
+  }
+
+  [data-phase='caught'] .extras-ball {
+    animation: ph-pop 0.45s var(--ease-spring);
+  }
+
+  /* Tres estrellas que saltan de la bola al atraparlo. */
+  .extras-star {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 22px;
+    height: 22px;
+    margin: -11px 0 0 -11px;
+    color: #ffd23f;
+    filter: drop-shadow(0 0 4px rgb(255 255 255 / 0.9));
+    animation: extras-star-fly 0.9s var(--ease-out-expo) forwards;
+  }
+
+  .extras-shiny-chip {
+    background: linear-gradient(115deg, #fff3b0, #ffd23f 45%, #ffb347);
+    color: #4a3200;
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.6), 0 2px 8px -2px rgb(255 180 60 / 0.7);
+  }
+
+  /* ------------------------------------------------------------------
+     Texto sobre fondos suaves (bg-*-soft)
+     ------------------------------------------------------------------ */
+
+  /* En letra pequeña el tono puro se queda corto de contraste sobre su propio
+     fondo suave: se acerca al color de texto del tema (más oscuro en claro,
+     más luminoso en oscuro) sin perder el matiz. */
+  .extras-ink-brand { color: color-mix(in oklab, var(--brand) 70%, var(--text)); }
+  .extras-ink-success { color: color-mix(in oklab, var(--success) 70%, var(--text)); }
+  .extras-ink-warning { color: color-mix(in oklab, var(--warning) 70%, var(--text)); }
+  .extras-ink-danger { color: color-mix(in oklab, var(--danger) 70%, var(--text)); }
+
+  /* ------------------------------------------------------------------
+     Índice de secciones (extras-section-nav.tsx): Configuración y legal
+     ------------------------------------------------------------------ */
+
+  /* Pegado a la altura a la que empieza el contenido, bajo la pokéball que
+     cuelga 40 px de la cabecera (el carril sólo existe de md en adelante), y
+     como mucho hasta 16 px por encima del pie fijo de 36 px. */
+  .extras-rail {
+    position: sticky;
+    top: calc(var(--header-h) + 40px);
+    max-height: calc(100dvh - var(--header-h) - 40px - 52px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+
+  /* Bordes difuminados: insinúan que la fila de chips sigue sin cortar en seco. */
+  .extras-chips {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 8px, #000 calc(100% - 8px), transparent);
+    mask-image: linear-gradient(to right, transparent, #000 8px, #000 calc(100% - 8px), transparent);
+  }
+
+  /* ------------------------------------------------------------------
+     Configuración
+     ------------------------------------------------------------------ */
+
+  /* Banda de la vista previa del perfil: la "portada" de tu ficha. Sólo lleva
+     decoración, así que el degradado no tiene que sostener texto. */
+  .settings-hero-band {
+    background-image:
+      radial-gradient(120% 160% at 0% 0%, rgb(255 255 255 / 0.24), transparent 55%),
+      var(--brand-gradient);
+  }
+
+  .settings-drop {
+    transition:
+      border-color var(--dur) var(--ease-out-expo),
+      background-color var(--dur) var(--ease-out-expo);
+  }
+
+  .settings-drop[data-dragging] {
+    border-color: var(--brand);
+    background-color: var(--brand-soft);
+  }
+
+  .settings-drop-avatar {
+    transition: scale var(--dur) var(--ease-spring);
+  }
+
+  .settings-drop-avatar:disabled {
+    cursor: progress;
+  }
+
+  /* Al arrastrar encima, la foto "se acerca" a recibir la imagen. */
+  .settings-drop[data-dragging] .settings-drop-avatar {
+    scale: 1.07;
+  }
+
+  @media (hover: hover) {
+    .settings-drop-avatar:not(:disabled):hover {
+      scale: 1.03;
+    }
+  }
+
+  /* Zona de peligro: canto rojo y una cinta de advertencia arriba, como las de
+     obra. El overflow recorta la cinta con el radio de la tarjeta. */
+  .settings-danger {
+    overflow: hidden;
+    border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+    background-image: linear-gradient(to bottom, var(--danger-soft), transparent 9rem);
+  }
+
+  .settings-danger::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto;
+    height: 5px;
+    background-image: repeating-linear-gradient(-45deg, var(--danger) 0 9px, transparent 9px 18px);
+    opacity: 0.75;
+  }
+
+  /* Botón de borrado definitivo: sólido y oscurecido para que el texto blanco
+     tenga contraste también con el rojo claro del tema oscuro. */
+  .settings-danger-solid {
+    background-color: color-mix(in oklab, var(--danger) 72%, black);
+    color: #fff;
+    box-shadow: var(--shadow);
+  }
+
+  @media (hover: hover) {
+    .settings-danger-solid:not(:disabled):hover {
+      background-color: color-mix(in oklab, var(--danger) 60%, black);
+      box-shadow: var(--shadow), 0 8px 22px -6px color-mix(in srgb, var(--danger) 60%, transparent);
+    }
+  }
+
+  /* ------------------------------------------------------------------
+     Premium
+     ------------------------------------------------------------------ */
+
+  /* Degradado de marca con un velo oscuro: sus extremos claros (naranja en
+     claro, lila y rosa en oscuro) dejarían el texto blanco sin contraste. */
+  .extras-premium-hero {
+    background-image:
+      radial-gradient(90% 120% at 0% 0%, rgb(255 255 255 / 0.2), transparent 55%),
+      linear-gradient(rgb(20 6 12 / 0.28), rgb(20 6 12 / 0.28)),
+      var(--brand-gradient);
+  }
+
+  .extras-premium-hero :is(h1, p) {
+    text-shadow: 0 1px 2px rgb(0 0 0 / 0.18);
+  }
+
+  .dark .extras-premium-hero {
+    background-image:
+      radial-gradient(90% 120% at 0% 0%, rgb(255 255 255 / 0.14), transparent 55%),
+      linear-gradient(rgb(18 8 40 / 0.45), rgb(18 8 40 / 0.45)),
+      var(--brand-gradient);
+  }
+
+  /* Subrayado de trazo, como un rotulador sobre la palabra. */
+  .extras-premium-word {
+    background: linear-gradient(transparent 72%, rgb(255 255 255 / 0.28) 72%, rgb(255 255 255 / 0.28) 92%, transparent 92%);
+    padding-inline: 0.08em;
+  }
+
+  .extras-premium-ball {
+    animation: ph-spin 60s linear infinite;
+  }
+
+  .extras-premium-spark {
+    animation: extras-twinkle 2.6s ease-in-out infinite;
+  }
+
+  /* Plan destacado: borde con el degradado de marca (dos fondos: el de la
+     tarjeta recortado al relleno y el degradado asomando por el borde). */
+  .extras-plan-featured {
+    border: 2px solid transparent;
+    background:
+      linear-gradient(var(--bg-elevated), var(--bg-elevated)) padding-box,
+      var(--brand-gradient) border-box;
+  }
+
+  .extras-faq > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .extras-faq-chevron {
+    transition: rotate var(--dur-slow) var(--ease-spring);
+  }
+
+  .extras-faq[open] .extras-faq-chevron {
+    rotate: 180deg;
+  }
+
+  .extras-faq[open] > .extras-faq-body {
+    animation: ph-fade-up 0.4s var(--ease-out-expo);
+  }
+
+  @media (hover: hover) {
+    .extras-faq > summary:hover {
+      color: var(--brand);
+    }
+  }
+
+  /* <summary> no entra en la regla global de foco: se le da la misma. */
+  .extras-faq > summary:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+
+  /* ------------------------------------------------------------------
+     Aviso legal
+     ------------------------------------------------------------------ */
+
+  /* Texto largo con ritmo de lectura. Sólo los hijos directos: las tablas de
+     almacenamiento traen su propio formato. */
+  .extras-prose {
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    color: color-mix(in srgb, var(--text) 88%, var(--muted));
+  }
+
+  .extras-prose > * + * {
+    margin-top: 0.85rem;
+  }
+
+  .extras-prose > h3 {
+    margin-top: 1.5rem;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.35;
+    color: var(--text);
+  }
+
+  .extras-prose > h3:first-child {
+    margin-top: 0;
+  }
+
+  .extras-prose > ul {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding-left: 1.25rem;
+    list-style: none;
+  }
+
+  /* Viñetas de pokéball diminuta: rojo arriba, blanco abajo. */
+  .extras-prose > ul > li {
+    position: relative;
+  }
+
+  .extras-prose > ul > li::before {
+    content: '';
+    position: absolute;
+    left: -1.1rem;
+    top: 0.6em;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 9999px;
+    background: linear-gradient(var(--brand) 0 45%, var(--band) 45% 55%, var(--surface-2) 55%);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--band) 60%, transparent);
+  }
+
+  .extras-prose strong {
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .extras-prose a:not(.btn) {
+    font-weight: 600;
+    color: var(--brand);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    transition: text-decoration-thickness var(--dur-fast) ease;
+  }
+
+  .extras-prose a:not(.btn):hover {
+    text-decoration-thickness: 2px;
+  }
+
+  .extras-prose code:not(.extras-key) {
+    padding: 0.05rem 0.35rem;
+    border-radius: 0.375rem;
+    background-color: color-mix(in srgb, var(--text) 8%, transparent);
+    font-size: 0.85em;
+  }
+
+  /* Nombre de cookie o clave: se corta en cualquier punto antes que desbordar a 360 px. */
+  .extras-key {
+    display: inline-block;
+    max-width: 100%;
+    padding: 0.2rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background-color: var(--bg-elevated);
+    color: var(--text);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+
+  /* El enlace a la sección asoma al pasar por encima (en táctil, siempre visible). */
+  @media (hover: hover) {
+    .extras-anchor {
+      opacity: 0;
+    }
+
+    .extras-legal-section:hover .extras-anchor,
+    .extras-anchor:focus-visible {
+      opacity: 1;
+    }
+  }
+}
+
+/* Fuera de capa a propósito: tienen que ganar a utilidades que también animan
+   (stagger-item) o que fijan el foco (btn). */
+
+/* Al llegar por un ancla (#cuenta, #cookies…), la tarjeta destella un momento. */
+.settings-section:target,
+.extras-legal-section:target {
+  animation: extras-target 1.6s var(--ease-out-expo);
+}
+
+.settings-danger:target {
+  --extras-target: var(--danger);
+}
+
+/* Sobre el degradado de marca el anillo de foco de marca no se vería. */
+.extras-on-brand :focus-visible {
+  outline-color: #fff;
+}
+
+@keyframes extras-rustle {
+  0%, 62%, 100% { transform: rotate(0); }
+  66% { transform: rotate(-6deg); }
+  70% { transform: rotate(5deg); }
+  74% { transform: rotate(-4deg); }
+  78% { transform: rotate(3deg); }
+  82% { transform: rotate(0); }
+}
+
+@keyframes extras-twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.3) rotate(0deg); }
+  45% { opacity: 1; transform: scale(1) rotate(45deg); }
+  60% { opacity: 0.9; transform: scale(0.85) rotate(60deg); }
+}
+
+@keyframes extras-appear {
+  0% { opacity: 0; transform: scale(0.2); filter: brightness(4) drop-shadow(0 10px 14px rgb(0 0 0 / 0)); }
+  55% { opacity: 1; transform: scale(1.08); filter: brightness(1.6) drop-shadow(0 10px 14px rgb(0 0 0 / 0.2)); }
+  100% { opacity: 1; transform: none; }
+}
+
+@keyframes extras-absorb {
+  0% { transform: none; filter: brightness(1); opacity: 1; }
+  40% { filter: brightness(5); opacity: 1; }
+  100% { transform: translateY(18%) scale(0.05); filter: brightness(6); opacity: 0; }
+}
+
+@keyframes extras-ball-drop {
+  from { opacity: 0; transform: translateY(-140px) rotate(-540deg) scale(0.6); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes extras-target {
+  0%, 100% { box-shadow: var(--shadow); }
+  35% {
+    box-shadow:
+      var(--shadow),
+      0 0 0 2px var(--extras-target, var(--brand)),
+      0 0 0 8px color-mix(in srgb, var(--extras-target, var(--brand)) 18%, transparent);
+  }
+}
+
+@keyframes extras-star-fly {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.2) rotate(0deg); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1) rotate(160deg); }
+}
+
+/* Con "reducir movimiento" la regla global acorta las animaciones pero no los
+   retrasos: la bola no debe quedarse invisible esperando su turno. */
+@media (prefers-reduced-motion: reduce) {
+  .extras-ball,
+  .extras-sparkle {
+    animation-delay: 0s !important;
+  }
+
+  .extras-rays,
+  .extras-premium-ball,
+  .extras-premium-spark {
+    animation: none;
+  }
+}

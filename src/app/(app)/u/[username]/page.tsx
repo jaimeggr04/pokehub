@@ -1,15 +1,33 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
 import type { Metadata } from 'next'
-import { CalendarDays, Sparkles, User } from 'lucide-react'
+import { CalendarDays, Heart, Sparkles } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { requireProfile } from '@/lib/session'
 import { TEAM_SELECT, withLikes } from '@/lib/queries'
-import { TeamCard } from '@/components/team-card'
-import { FollowButton } from '@/components/follow-button'
-import { MessageUserButton } from '@/components/message-user-button'
-import type { ProfileRow, TeamWithAuthor } from '@/lib/database.types'
+import {
+  computeMedals,
+  daysSince,
+  pickPartner,
+  trainerNumber,
+  type PartnerBuild,
+  type TrainerStats,
+} from '@/lib/achievements'
+import { PokeballGlyph, TeamCard } from '@/components/team-card'
+import { TrainerBadges } from '@/components/trainer-badges'
+import { ProfileShareButton, ProfileSocial } from '@/components/profile-social'
+import { ProfileTrainerCard } from '@/components/profile-trainer-card'
+import { Avatar } from '@/components/ui/avatar'
+import { EmptyState } from '@/components/ui/empty-state'
+import { SegmentedTabs } from '@/components/ui/segmented-tabs'
+import type { ProfileRow, TeamRow, TeamWithAuthor } from '@/lib/database.types'
+
+// En la pestaña "Me gusta" sus equipos no se pintan, pero siguen haciendo
+// falta para los contadores, las medallas y el compañero: basta con esto.
+const TEAM_STATS_SELECT = 'id, is_public, like_count, builds(pokemon_id, pokemon_name, shiny)'
+
+type TeamStatsRow = Pick<TeamRow, 'id' | 'is_public' | 'like_count'> & { builds: PartnerBuild[] | null }
+type Client = Awaited<ReturnType<typeof createClient>>
 
 export async function generateMetadata({
   params,
@@ -44,132 +62,252 @@ export default async function ProfilePage({
   const person = target as ProfileRow
   const isMe = person.id === userId
 
-  const [{ count: followers }, { count: following }, { data: followRow }] = await Promise.all([
+  const [{ count: followers }, { count: following }, followRow, { data: ownData }, likedTeams] = await Promise.all([
     supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', person.id),
     supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', person.id),
+    // A uno mismo no se le sigue: en tu ficha la consulta sobra.
+    isMe
+      ? null
+      : supabase
+          .from('follows')
+          .select('follower_id')
+          .eq('follower_id', userId)
+          .eq('following_id', person.id)
+          .maybeSingle(),
+    // La RLS ya deja fuera los equipos privados ajenos: lo que llega es lo visible.
     supabase
-      .from('follows')
-      .select('follower_id')
-      .eq('follower_id', userId)
-      .eq('following_id', person.id)
-      .maybeSingle(),
+      .from('teams')
+      .select(showLiked ? TEAM_STATS_SELECT : TEAM_SELECT)
+      .eq('user_id', person.id)
+      .order('created_at', { ascending: false }),
+    showLiked ? fetchLikedTeams(supabase, person.id) : null,
   ])
 
-  let teams: TeamWithAuthor[] = []
-  if (showLiked) {
-    const { data: liked } = await supabase.from('likes').select('team_id').eq('user_id', person.id)
-    const ids = (liked ?? []).map((l) => l.team_id)
-    if (ids.length) {
-      const { data } = await supabase
-        .from('teams')
-        .select(TEAM_SELECT)
-        .in('id', ids)
-        .order('created_at', { ascending: false })
-      teams = (data ?? []) as unknown as TeamWithAuthor[]
-    }
-  } else {
-    const { data } = await supabase
-      .from('teams')
-      .select(TEAM_SELECT)
-      .eq('user_id', person.id)
-      .order('created_at', { ascending: false })
-    teams = (data ?? []) as unknown as TeamWithAuthor[]
-  }
-  teams = await withLikes(supabase, teams, userId)
+  const ownTeams = (ownData ?? []) as unknown as TeamStatsRow[]
+  const teams = await withLikes(
+    supabase,
+    likedTeams ?? (ownTeams as unknown as TeamWithAuthor[]),
+    userId,
+  )
 
+  let likesReceived = 0
+  let shinyBuilds = 0
+  for (const team of ownTeams) {
+    // En tu propia ficha llegan también los privados, y ésos no los puede likear nadie más.
+    if (team.is_public) likesReceived += team.like_count
+    for (const build of team.builds ?? []) if (build.shiny) shinyBuilds += 1
+  }
+
+  // Todo lo que depende de la fecha se calcula aquí: el cliente sólo lo pinta.
+  const stats: TrainerStats = {
+    teams: ownTeams.length,
+    likesReceived,
+    followers: followers ?? 0,
+    shinyBuilds,
+    accountDays: daysSince(person.created_at),
+  }
+  const medals = computeMedals(stats)
+  const partner = pickPartner(ownTeams)
+
+  const displayName = person.display_name?.trim() || person.username
+  const bio = person.bio?.trim()
   const joined = new Date(person.created_at).toLocaleDateString('es', { month: 'long', year: 'numeric' })
+  const profileHref = `/u/${person.username}`
 
   return (
-    <div className="mx-auto max-w-[820px] px-3 sm:px-4">
-      <header className="mb-5 rounded-card border border-line bg-surface p-6 shadow-card">
-        <div className="flex flex-wrap items-start gap-5">
-          <span className="grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-full border-4 border-bg-elevated bg-surface-2 text-muted shadow-card">
-            {person.avatar_url ? (
-              <Image src={person.avatar_url} alt="" width={96} height={96} unoptimized className="h-full w-full object-cover" />
-            ) : (
-              <User size={40} />
-            )}
+    // Misma rejilla que loading.tsx: si cambia aquí, cambiarla también allí.
+    // md:pt-4: la cabecera empieza donde acaba la pokéball que cuelga del menú.
+    <div className="profile-layout mx-auto max-w-[1160px] px-3 sm:px-4 md:pt-4">
+      <header aria-labelledby="profile-name" className="profile-hero card stagger-item">
+        <div className="profile-band">
+          <BandBall />
+          <ProfileShareButton username={person.username} name={displayName} />
+        </div>
+
+        <div className="profile-hero-body">
+          <span className="profile-avatar" data-premium={person.is_premium || undefined}>
+            <Avatar src={person.avatar_url} name={person.username} size={128} />
           </span>
 
-          <div className="min-w-0 flex-1">
-            <h1 className="flex items-center gap-2 text-2xl font-extrabold leading-tight">
-              {person.display_name || person.username}
-              {person.is_premium && <Sparkles size={18} className="text-brand" aria-label="Premium" />}
-            </h1>
-            <p className="text-sm text-muted">@{person.username}</p>
-            {person.bio && <p className="mt-2 max-w-prose text-sm">{person.bio}</p>}
-
-            <dl className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm">
-              <Stat label="equipos" value={teams.length} hidden={showLiked} />
-              <Stat label="seguidores" value={followers ?? 0} />
-              <Stat label="siguiendo" value={following ?? 0} />
-              <span className="flex items-center gap-1.5 text-muted">
-                <CalendarDays size={14} /> Se unió en {joined}
-              </span>
-            </dl>
-          </div>
-
-          <div className="flex shrink-0 flex-col gap-2">
-            {isMe ? (
-              <Link
-                href="/settings"
-                className="rounded-full bg-surface-2 px-5 py-2 text-sm font-semibold shadow-card transition hover:bg-line"
+          <div className="profile-hero-id">
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+              <h1
+                id="profile-name"
+                className="min-w-0 text-2xl font-extrabold leading-tight tracking-tight [overflow-wrap:anywhere] md:text-[1.75rem]"
               >
-                Editar perfil
-              </Link>
-            ) : (
-              <>
-                <FollowButton targetId={person.id} following={Boolean(followRow)} size="md" />
-                <MessageUserButton targetId={person.id} />
-              </>
-            )}
+                {displayName}
+              </h1>
+              {person.is_premium && (
+                <span
+                  title="Entrenador con el plan Premium"
+                  className="inline-flex h-6 shrink-0 items-center gap-1 rounded-full bg-warning-soft px-2.5 text-xs font-bold text-warning"
+                >
+                  <Sparkles size={13} strokeWidth={2.5} aria-hidden />
+                  Premium
+                </span>
+              )}
+            </div>
+            {/* Sin "·" entre ambos: al bajar de línea se quedaría colgando. El
+                icono del calendario ya hace de separador. */}
+            <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-muted">
+              <span className="font-semibold [overflow-wrap:anywhere]">@{person.username}</span>
+              <span className="inline-flex items-center gap-1.5">
+                <CalendarDays size={14} aria-hidden className="shrink-0" />
+                <span>
+                  Se unió en <time dateTime={person.created_at}>{joined}</time>
+                </span>
+              </span>
+            </p>
           </div>
+
+          {bio && (
+            <p className="profile-hero-bio max-w-prose whitespace-pre-line text-[15px] leading-relaxed [overflow-wrap:anywhere]">
+              {bio}
+            </p>
+          )}
+
+          <ProfileSocial
+            targetId={person.id}
+            username={person.username}
+            isMe={isMe}
+            following={Boolean(followRow?.data)}
+            counts={{
+              teams: stats.teams,
+              followers: stats.followers,
+              following: following ?? 0,
+              likesReceived,
+            }}
+          />
         </div>
       </header>
 
-      <nav className="mb-4 flex gap-2 rounded-full bg-surface p-1 shadow-card">
-        <Tab href={`/u/${person.username}`} active={!showLiked}>Equipos</Tab>
-        <Tab href={`/u/${person.username}?tab=megusta`} active={showLiked}>Me gusta</Tab>
-      </nav>
+      <aside
+        aria-label={isMe ? 'Tu ficha y tus medallas' : 'Ficha y medallas'}
+        style={{ '--i': 1 } as React.CSSProperties}
+        className="profile-aside stagger-item"
+      >
+        <ProfileTrainerCard trainerNo={trainerNumber(person.id)} partner={partner} isMe={isMe} />
+        <TrainerBadges medals={medals} isMe={isMe} trainerId={person.id} username={person.username} />
+      </aside>
 
-      {teams.length === 0 ? (
-        <p className="rounded-card border border-dashed border-line bg-surface p-10 text-center text-sm text-muted">
-          {showLiked
-            ? 'Todavía no ha dado me gusta a ningún equipo.'
-            : isMe
-              ? 'Aún no has publicado ningún equipo.'
-              : 'Este entrenador todavía no ha publicado equipos.'}
-        </p>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {teams.map((t) => (
-            <TeamCard key={t.id} team={t} />
-          ))}
-        </div>
-      )}
+      <section aria-labelledby="profile-list-title" className="profile-main">
+        <h2 id="profile-list-title" className="sr-only">
+          {showLiked ? `Equipos que le gustan a @${person.username}` : `Equipos de @${person.username}`}
+        </h2>
+
+        <SegmentedTabs
+          ariaLabel="Secciones del perfil"
+          // En móvil las pestañas se quedan flotando bajo la cabecera; en md+
+          // no, o la pokéball que cuelga del menú caería encima de ellas.
+          className="sticky top-[calc(var(--header-h)+8px)] z-20 mb-4 max-md:shadow-float md:static"
+          items={[
+            {
+              href: profileHref,
+              active: !showLiked,
+              label: (
+                <span className="inline-flex items-center gap-1.5">
+                  <PokeballGlyph className="size-[15px] shrink-0" />
+                  Equipos
+                </span>
+              ),
+            },
+            {
+              href: `${profileHref}?tab=megusta`,
+              active: showLiked,
+              label: (
+                <span className="inline-flex items-center gap-1.5">
+                  <Heart size={15} aria-hidden className="shrink-0" />
+                  Me gusta
+                </span>
+              ),
+            },
+          ]}
+        />
+
+        {teams.length === 0 ? (
+          <ProfileEmpty liked={showLiked} isMe={isMe} username={person.username} />
+        ) : (
+          <div className="flex flex-col gap-4">
+            {teams.map((team, index) => (
+              <TeamCard key={team.id} team={team} index={index} />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   )
 }
 
-function Stat({ label, value, hidden }: { label: string; value: number; hidden?: boolean }) {
-  if (hidden) return null
+async function fetchLikedTeams(supabase: Client, personId: string): Promise<TeamWithAuthor[]> {
+  const { data: liked } = await supabase.from('likes').select('team_id').eq('user_id', personId)
+  const ids = (liked ?? []).map((l) => l.team_id)
+  if (ids.length === 0) return []
+
+  const { data } = await supabase
+    .from('teams')
+    .select(TEAM_SELECT)
+    .in('id', ids)
+    .order('created_at', { ascending: false })
+  return (data ?? []) as unknown as TeamWithAuthor[]
+}
+
+function ProfileEmpty({ liked, isMe, username }: { liked: boolean; isMe: boolean; username: string }) {
+  if (liked) {
+    return (
+      <EmptyState
+        icon={<Heart size={28} aria-hidden />}
+        title={isMe ? 'Aún no te ha gustado ningún equipo' : `A @${username} aún no le ha gustado ningún equipo`}
+        description={
+          isMe
+            ? 'Dale me gusta a los equipos que te inspiren y los tendrás siempre a mano aquí.'
+            : 'Cuando le dé me gusta a algún equipo, aparecerá aquí.'
+        }
+        action={
+          isMe && (
+            <Link href="/home" className="btn btn-primary">
+              Explorar equipos
+            </Link>
+          )
+        }
+      />
+    )
+  }
+
   return (
-    <span>
-      <strong className="tabular-nums">{value}</strong> <span className="text-muted">{label}</span>
-    </span>
+    <EmptyState
+      title={isMe ? 'Aún no has publicado ningún equipo' : `@${username} todavía no ha publicado equipos`}
+      description={
+        isMe
+          ? 'Créalo desde cero o impórtalo desde Showdown. Tu primera medalla te está esperando.'
+          : 'Cuando comparta su primer equipo, lo verás aquí.'
+      }
+      action={
+        isMe && (
+          <Link href="/team/new" className="btn btn-primary">
+            Crear mi primer equipo
+          </Link>
+        )
+      }
+    />
   )
 }
 
-function Tab({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
+/** Pokéball de trazo que asoma por la banda. Sólo decoración. */
+function BandBall() {
   return (
-    <Link
-      href={href}
-      aria-current={active ? 'page' : undefined}
-      className={`flex-1 rounded-full py-2 text-center text-sm font-semibold transition ${
-        active ? 'bg-brand text-brand-fg shadow-card' : 'text-muted hover:text-ink'
-      }`}
+    <svg
+      viewBox="0 0 100 100"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={5}
+      aria-hidden
+      focusable="false"
+      className="profile-band-ball"
     >
-      {children}
-    </Link>
+      <circle cx="50" cy="50" r="46" />
+      <path d="M4 50h30M66 50h30" />
+      <circle cx="50" cy="50" r="15" />
+      <circle cx="50" cy="50" r="6" fill="currentColor" stroke="none" />
+    </svg>
   )
 }

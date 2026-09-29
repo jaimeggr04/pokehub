@@ -1,29 +1,40 @@
-import Link from 'next/link'
 import { Logo } from '@/components/logo'
 import { MobileMenu } from '@/components/mobile-menu'
-import { PokeballCore } from '@/components/pokeball'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { UserMenu } from '@/components/user-menu'
+import { DesktopNav, HeaderScrollState, MobileSearchButton, SearchTrigger } from '@/components/nav-links'
 import type { ProfileRow } from '@/lib/database.types'
 
 export const HEADER_HEIGHT = 'h-[92px] md:h-[112px]'
 
+/**
+ * Cabecera fija: la banda de marca hace de mitad superior de una pokéball y
+ * el botón central (en la navegación de escritorio) la remata. Sigue siendo
+ * un componente de servidor; lo interactivo va en islas de cliente.
+ */
 export function SiteHeader({ profile }: { profile: ProfileRow }) {
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-40 ${HEADER_HEIGHT} border-b-8 border-band bg-brand shadow-card transition-colors duration-300`}
+      className={`shell-header shell-on-brand fixed inset-x-0 top-0 z-40 ${HEADER_HEIGHT} border-b-8 border-band bg-brand`}
     >
-      <div className="mx-auto flex h-full max-w-[1800px] items-center justify-between px-4 md:px-7">
-        <span className="hidden sm:block">
-          <Logo href="/home" size="md" />
+      <HeaderScrollState />
+      <div className="relative mx-auto flex h-full max-w-[1800px] items-center justify-between gap-3 px-4 md:px-7">
+        {/* El logo también es el disparador del huevo de pascua (7 toques seguidos). */}
+        <span className="relative z-10 sm:hidden">
+          <Logo href="/home" size="sm" easterEggTrigger />
         </span>
-        <span className="sm:hidden">
-          <Logo href="/home" size="sm" />
+        <span className="relative z-10 hidden sm:block">
+          <Logo href="/home" size="md" easterEggTrigger />
         </span>
 
-        <div className="flex items-center gap-3 md:gap-4">
+        <DesktopNav />
+
+        <div className="relative z-10 flex items-center gap-2 md:gap-3">
           {/* En móvil el tema y la cuenta viven dentro del menú hamburguesa,
               así la cabecera no se llena de controles en pantallas estrechas. */}
+          <span className="hidden md:block">
+            <SearchTrigger />
+          </span>
           <span className="hidden md:block">
             <ThemeToggle />
           </span>
@@ -34,6 +45,7 @@ export function SiteHeader({ profile }: { profile: ProfileRow }) {
               avatarUrl={profile.avatar_url}
             />
           </span>
+          <MobileSearchButton />
           <MobileMenu
             username={profile.username}
             displayName={profile.display_name}
@@ -41,19 +53,6 @@ export function SiteHeader({ profile }: { profile: ProfileRow }) {
           />
         </div>
       </div>
-
-      {/* Botón pokéball centrado, a caballo entre la cabecera y el contenido */}
-      <span className="pointer-events-none absolute bottom-0 left-1/2 hidden md:block">
-        <Link
-          href="/home"
-          aria-label="Ir al inicio"
-          title="Inicio"
-          className="pointer-events-auto block h-20 w-20 -translate-x-1/2 translate-y-1/2 rounded-full drop-shadow-[0_6px_12px_rgba(0,0,0,.4)] transition-transform duration-300 hover:scale-110 hover:rotate-6 active:scale-95"
-        >
-          <span className="sr-only">Inicio</span>
-          <PokeballCore className="h-full w-full" />
-        </Link>
-      </span>
     </header>
   )
 }
@@ -61,7 +60,7 @@ export function SiteHeader({ profile }: { profile: ProfileRow }) {
 export function AuthHeader({ open }: { open: boolean }) {
   return (
     <header
-      className={`pokeball-top fixed inset-x-0 top-0 z-40 border-b-8 border-band bg-brand shadow-card ${
+      className={`pokeball-top shell-on-brand fixed inset-x-0 top-0 z-40 border-b-8 border-band bg-brand shadow-card ${
         open ? 'h-[92px] md:h-[112px]' : 'h-[50vh]'
       }`}
     >

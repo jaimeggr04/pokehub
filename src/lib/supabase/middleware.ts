@@ -1,9 +1,29 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PUBLIC_ROUTES = ['/', '/login', '/register', '/auth']
+// La recuperación de contraseña es pública pero, a diferencia de /login y
+// /register, no echa a quien ya tiene sesión: /reset-password se usa justo con
+// la sesión que abre el enlace, y desde Ajustes se manda a /forgot-password.
+// /legal también: el registro enlaza a las condiciones antes de tener cuenta.
+const PUBLIC_ROUTES = [
+  '/', '/login', '/register', '/auth', '/forgot-password', '/reset-password', '/legal',
+]
+const GUEST_ONLY_ROUTES = ['/login', '/register']
+
+// Manifest, iconos e imagen para compartir que genera Next (src/app/manifest.ts,
+// icon.tsx…). El navegador pide el manifest sin cookies y los rastreadores de
+// redes sociales no tienen sesión: redirigirlos al login los rompería. Admite el
+// id de generateImageMetadata (/icon/192) y el sufijo de 6 caracteres que Next
+// añade a las rutas de metadatos dentro de grupos (/opengraph-image-1a2b3c).
+const METADATA_ROUTE =
+  /^\/(?:manifest\.webmanifest|(?:icon|apple-icon|opengraph-image|twitter-image)(?:-[0-9a-z]{6})?(?:\/[\w-]+)?)$/
 
 export async function updateSession(request: NextRequest) {
+  // Son recursos estáticos: ni necesitan sesión ni hace falta refrescarla.
+  if (METADATA_ROUTE.test(request.nextUrl.pathname)) {
+    return NextResponse.next({ request })
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -40,7 +60,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  if (user && (pathname === '/login' || pathname === '/register')) {
+  if (user && GUEST_ONLY_ROUTES.includes(pathname)) {
     const url = request.nextUrl.clone()
     url.pathname = '/home'
     url.search = ''

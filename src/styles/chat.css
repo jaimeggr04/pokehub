@@ -1,0 +1,485 @@
+/* Mensajes y salas de chat (chat).
+   CSS sin capa: gana a las utilidades de Tailwind en el mismo elemento, así
+   que aquí sólo va lo que ninguna clase del JSX intenta cambiar. */
+
+/* ---------------------------------------------------------------
+   Alto de los paneles de /messages: de debajo de la cabecera fija a encima de
+   la barra inferior (móvil) o del pie (md+). 104px es el padding superior del
+   <main> en móvil; 160px, el de md (136px) más los 24px que libran la pokéball
+   de la cabecera. El vh va delante como respaldo para navegadores sin dvh.
+   --------------------------------------------------------------- */
+@utility chat-pane-h {
+  height: calc(100vh - 104px - var(--bottomnav-h) - env(safe-area-inset-bottom, 0px) - 8px);
+  height: calc(100dvh - 104px - var(--bottomnav-h) - env(safe-area-inset-bottom, 0px) - 8px);
+  min-height: 320px;
+
+  @media (min-width: 48rem) {
+    height: calc(100vh - 160px - 36px - 16px);
+    height: calc(100dvh - 160px - 36px - 16px);
+    min-height: 420px;
+  }
+}
+
+/* ---------------------------------------------------------------
+   Fondo del chat: pokéballs en línea muy tenues, dibujadas con una máscara
+   sobre el color del texto para que funcionen igual en claro y en oscuro.
+   --------------------------------------------------------------- */
+.chat-wallpaper {
+  position: relative;
+  isolation: isolate;
+  background-image: radial-gradient(120% 70% at 50% 0%, var(--bg-glow-1), transparent 65%);
+}
+
+.chat-wallpaper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: var(--text);
+  opacity: .05;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cg fill='none' stroke='%23000' stroke-width='2'%3E%3Ccircle cx='26' cy='26' r='10'/%3E%3Cpath d='M16 26h6.5M29.5 26H36'/%3E%3Ccircle cx='26' cy='26' r='3.5'/%3E%3Cg transform='rotate(-24 72 70)'%3E%3Ccircle cx='72' cy='70' r='8'/%3E%3Cpath d='M64 70h5.2M74.8 70H80'/%3E%3Ccircle cx='72' cy='70' r='2.8'/%3E%3C/g%3E%3C/g%3E%3Cg fill='%23000'%3E%3Ccircle cx='72' cy='22' r='1.6'/%3E%3Ccircle cx='22' cy='74' r='1.6'/%3E%3C/g%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cg fill='none' stroke='%23000' stroke-width='2'%3E%3Ccircle cx='26' cy='26' r='10'/%3E%3Cpath d='M16 26h6.5M29.5 26H36'/%3E%3Ccircle cx='26' cy='26' r='3.5'/%3E%3Cg transform='rotate(-24 72 70)'%3E%3Ccircle cx='72' cy='70' r='8'/%3E%3Cpath d='M64 70h5.2M74.8 70H80'/%3E%3Ccircle cx='72' cy='70' r='2.8'/%3E%3C/g%3E%3C/g%3E%3Cg fill='%23000'%3E%3Ccircle cx='72' cy='22' r='1.6'/%3E%3Ccircle cx='22' cy='74' r='1.6'/%3E%3C/g%3E%3C/svg%3E");
+  -webkit-mask-size: 96px 96px;
+  mask-size: 96px 96px;
+}
+
+.dark .chat-wallpaper::before {
+  opacity: .07;
+}
+
+/* ---------------------------------------------------------------
+   Lista de conversaciones
+   --------------------------------------------------------------- */
+.chat-row {
+  transition-property: translate, scale, background-color, box-shadow, color;
+  transition-duration: var(--dur);
+  transition-timing-function: var(--ease-out-expo);
+}
+
+@media (hover: hover) {
+  .chat-row:hover {
+    translate: 0 -1px;
+    background-color: var(--surface-2);
+    box-shadow: var(--shadow);
+  }
+
+  .chat-row.is-compact:hover {
+    translate: 0 -2px;
+    box-shadow: var(--shadow-lg);
+  }
+}
+
+.chat-row:active {
+  scale: .985;
+  transition-duration: var(--dur-fast);
+}
+
+/* La conversación abierta: fondo de marca suave y un filo a la izquierda. */
+.chat-row.is-active,
+.chat-row.is-active:hover {
+  background-color: var(--brand-soft);
+  box-shadow: inset 3px 0 0 var(--brand);
+  translate: none;
+}
+
+.chat-unread-dot {
+  position: relative;
+  flex-shrink: 0;
+  width: .625rem;
+  height: .625rem;
+  border-radius: 9999px;
+  background-color: var(--brand);
+}
+
+/* Onda suave: un detalle en reposo, no una alarma. */
+.chat-unread-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-color: var(--brand);
+  animation: chat-unread-ping 2.4s var(--ease-out-expo) infinite;
+}
+
+@keyframes chat-unread-ping {
+  0% { transform: scale(1); opacity: .55; }
+  70%, 100% { transform: scale(2.6); opacity: 0; }
+}
+
+/* Ya hay un botón propio para borrar la búsqueda. */
+.chat-search::-webkit-search-cancel-button,
+.chat-search::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Bienvenida de /messages en escritorio. */
+.chat-welcome-bubble {
+  animation: ph-bounce-in .6s var(--ease-out-expo) .2s backwards;
+}
+
+.chat-welcome-bubble.is-late {
+  animation-delay: .5s;
+}
+
+/* ---------------------------------------------------------------
+   Sala
+   --------------------------------------------------------------- */
+.chat-scroll:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
+}
+
+.chat-presence {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 13px;
+  height: 13px;
+  border-radius: 9999px;
+  background-color: var(--success);
+  box-shadow: 0 0 0 2.5px var(--surface-2);
+}
+
+.chat-day-chip {
+  pointer-events: auto;
+  border-radius: 9999px;
+  padding: .25rem .75rem;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1rem;
+  letter-spacing: .02em;
+  color: var(--muted);
+  background-color: color-mix(in srgb, var(--bg-elevated) 88%, transparent);
+  box-shadow: var(--shadow);
+  -webkit-backdrop-filter: blur(10px) saturate(1.3);
+  backdrop-filter: blur(10px) saturate(1.3);
+}
+
+.chat-unread-divider {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin: 1rem 0 .25rem;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--brand);
+}
+
+.chat-unread-divider::before,
+.chat-unread-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background-color: color-mix(in srgb, var(--brand) 45%, transparent);
+}
+
+/* Burbujas. Dentro de un grupo, las esquinas del lado del remitente se
+   estrechan para que los mensajes seguidos se lean como un solo bloque. */
+.chat-bubble {
+  --chat-r: 20px;
+  --chat-r-tight: 6px;
+  position: relative;
+  max-width: 100%;
+  padding: .5rem .875rem;
+  border-radius: var(--chat-r);
+  font-size: 15px;
+  line-height: 1.4;
+  box-shadow: 0 1px 1px rgb(0 0 0 / .08), 0 1px 3px rgb(0 0 0 / .07);
+  transition: filter var(--dur) var(--ease-out-expo);
+}
+
+.dark .chat-bubble {
+  box-shadow: 0 1px 2px rgb(0 0 0 / .35);
+}
+
+.chat-bubble--me {
+  background-color: var(--brand);
+  background-image: linear-gradient(180deg, rgb(255 255 255 / .1), transparent 70%);
+  color: var(--brand-fg);
+}
+
+.chat-bubble--them {
+  background-color: var(--surface-2);
+  color: var(--text);
+}
+
+.chat-bubble--me[data-pos='first'] { border-bottom-right-radius: var(--chat-r-tight); }
+.chat-bubble--me[data-pos='middle'] {
+  border-top-right-radius: var(--chat-r-tight);
+  border-bottom-right-radius: var(--chat-r-tight);
+}
+.chat-bubble--me[data-pos='last'] { border-top-right-radius: var(--chat-r-tight); }
+
+.chat-bubble--them[data-pos='first'] { border-bottom-left-radius: var(--chat-r-tight); }
+.chat-bubble--them[data-pos='middle'] {
+  border-top-left-radius: var(--chat-r-tight);
+  border-bottom-left-radius: var(--chat-r-tight);
+}
+.chat-bubble--them[data-pos='last'] { border-top-left-radius: var(--chat-r-tight); }
+
+/* Sólo emojis: sin burbuja y en grande, como en cualquier app de mensajería. */
+.chat-bubble--emoji {
+  padding: 0 .125rem;
+  font-size: 2.25rem;
+  line-height: 1.2;
+  box-shadow: none;
+  background: none;
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / .12));
+}
+
+.chat-bubble--emoji[data-emoji='1'] {
+  font-size: 3rem;
+}
+
+/* Un enlace a un equipo solo en el mensaje: la burbuja es la propia tarjeta. */
+.chat-bubble--card {
+  padding: .375rem;
+}
+
+.chat-bubble.is-sending {
+  filter: saturate(.55) brightness(1.04);
+}
+
+.chat-bubble.is-failed {
+  outline: 1.5px dashed var(--danger);
+  outline-offset: 2px;
+}
+
+.chat-link {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.chat-bubble--me .chat-link { color: inherit; }
+.chat-bubble--them .chat-link { color: var(--brand); }
+
+.chat-team-card {
+  display: block;
+  width: 15.5rem;
+  max-width: 100%;
+  margin-top: .5rem;
+  padding: .625rem .75rem;
+  border-radius: 14px;
+  transition-property: translate, scale, box-shadow, background-color;
+  transition-duration: var(--dur);
+  transition-timing-function: var(--ease-out-expo);
+}
+
+.chat-bubble--card .chat-team-card {
+  margin-top: 0;
+}
+
+.chat-team-card--me {
+  background-color: rgb(0 0 0 / .16);
+  color: var(--brand-fg);
+}
+
+.chat-team-card--them {
+  background-color: var(--surface);
+  color: var(--text);
+}
+
+@media (hover: hover) {
+  .chat-team-card:hover {
+    translate: 0 -1px;
+    box-shadow: var(--shadow);
+  }
+}
+
+.chat-team-card:active {
+  scale: .98;
+  transition-duration: var(--dur-fast);
+}
+
+.chat-team-slot {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  background-color: rgb(255 255 255 / .16);
+}
+
+.chat-team-card--them .chat-team-slot {
+  background-color: var(--surface-2);
+}
+
+/* «Escribiendo…»: tres puntos que saltan en ola. */
+.chat-typing {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: .8rem .95rem;
+}
+
+.chat-typing > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background-color: var(--muted);
+  animation: chat-typing-dot 1.2s var(--ease-in-out) infinite;
+}
+
+.chat-typing > span:nth-child(2) { animation-delay: .15s; }
+.chat-typing > span:nth-child(3) { animation-delay: .3s; }
+
+@keyframes chat-typing-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: .45; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+/* Primer contacto: la pokéball cae junto al avatar y se tambalea una vez. */
+.chat-hero-badge {
+  animation: ph-bounce-in .6s var(--ease-out-expo) .25s backwards;
+}
+
+.chat-hero-badge > svg {
+  animation: ph-wiggle .6s ease-in-out 1s;
+}
+
+.chat-jump {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: .375rem;
+  border-radius: 9999px;
+  font-size: .8125rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-lg);
+  transition: scale var(--dur) var(--ease-out-expo), background-color var(--dur) var(--ease-out-expo);
+}
+
+.chat-jump:active {
+  scale: .94;
+  transition-duration: var(--dur-fast);
+}
+
+.chat-jump--pill {
+  height: 2.5rem;
+  padding: 0 1rem;
+  background-color: var(--brand);
+  color: var(--brand-fg);
+}
+
+.chat-jump--round {
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid var(--border);
+  background-color: var(--bg-elevated);
+  color: var(--text);
+}
+
+.chat-jump-count {
+  display: grid;
+  place-items: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 .3rem;
+  border-radius: 9999px;
+  background-color: var(--brand-fg);
+  color: var(--brand);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------
+   Barra de escribir
+   --------------------------------------------------------------- */
+.chat-input {
+  /* 5 líneas de 24px + padding + borde; a partir de ahí, scroll interno. */
+  max-height: calc(5 * 1.5rem + 20px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  transition-property: border-color, box-shadow, background-color;
+  transition-duration: var(--dur);
+  transition-timing-function: var(--ease-out-expo);
+}
+
+.chat-input:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+/* El anillo de arriba ya marca el foco: sin el contorno global duplicado. */
+.chat-input:focus-visible {
+  outline: none;
+}
+
+.chat-share svg {
+  transition: rotate var(--dur-slow) var(--ease-spring);
+}
+
+@media (hover: hover) {
+  .chat-share:hover svg { rotate: -20deg; }
+}
+
+.chat-share:active svg {
+  rotate: 20deg;
+}
+
+/* relative + overflow: el avión que sale volando se recorta en el círculo. */
+.chat-send {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  overflow: hidden;
+  border-radius: 9999px;
+  background-color: var(--brand);
+  color: var(--brand-fg);
+  box-shadow: var(--shadow), 0 6px 16px -6px color-mix(in srgb, var(--brand) 70%, transparent);
+  cursor: pointer;
+  transition:
+    background-color var(--dur) var(--ease-out-expo),
+    color var(--dur) var(--ease-out-expo),
+    box-shadow var(--dur) var(--ease-out-expo),
+    scale var(--dur-slow) var(--ease-spring);
+}
+
+.chat-send[data-ready='false'] {
+  background-color: var(--surface);
+  color: var(--muted);
+  box-shadow: none;
+  scale: .9;
+  cursor: default;
+}
+
+@media (hover: hover) {
+  .chat-send[data-ready='true']:hover {
+    background-color: var(--brand-strong);
+  }
+}
+
+.chat-send[data-ready='true']:active {
+  scale: .9;
+  transition-duration: var(--dur-fast);
+}
+
+/* Hoja «Compartir un equipo». */
+.chat-share-option {
+  display: block;
+  width: 100%;
+  padding: .75rem .875rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background-color: var(--surface-2);
+  text-align: left;
+}
+
+@media (hover: hover) {
+  .chat-share-option:not(:disabled):hover {
+    border-color: var(--brand);
+    background-color: var(--brand-soft);
+  }
+}
+
+.chat-share-option:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}

@@ -1,132 +1,56 @@
 'use client'
 
-import { useEffect, useMemo, useState, useTransition } from 'react'
-import Image from 'next/image'
-import { useRouter } from 'next/navigation'
+import { Fragment, memo, useCallback, useEffect, useId, useMemo, useRef, useState, useTransition } from 'react'
+import { unstable_rethrow, useRouter } from 'next/navigation'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
-  AlertTriangle, ChevronDown, ChevronUp, ClipboardPaste, Loader2, Plus, Save, Sparkles,
-  Trash2, X,
+  AlertTriangle, ChartColumn, CheckCircle2, ChevronDown, ClipboardPaste, Dices, LogOut, Plus, RotateCcw,
+  Save, Send, Undo2, X,
 } from 'lucide-react'
-import { TypeBadge } from '@/components/type-badge'
-import { EntityPicker, type PickerOption } from '@/components/entity-picker'
+import clsx from 'clsx'
+import { ChoiceDialog, type DialogChoice } from '@/components/builder/choice-dialog'
+import { ImportPanel } from '@/components/builder/import-panel'
 import {
-  getMoves, listItems, listPokemon, resolvePokemon,
-  type MoveDetail, type PokemonDetail,
-} from '@/lib/pokeapi'
-import {
-  MAX_EV, MAX_EVS_TOTAL, MAX_IV, NATURES, NATURE_NAMES, POKEMON_TYPES, STAT_KEYS, STAT_LABELS,
-  computeStat, itemSpriteUrl, natureModifier, prettify, spriteUrl, statColor, type StatKey,
-} from '@/lib/pokemon'
+  FORMATS, MAX_SLOTS, emptySlot, evsLeft, showdownFormatLabel, slotFromBuild, slotFromRandom, slotName,
+  teamSnapshot, toInput, type Slot, type SlotPatch,
+} from '@/components/builder/model'
+import { SaveBar, SaveCard } from '@/components/builder/save-bar'
+import { pinElement, scrollToElement, topObstruction } from '@/components/builder/scroll'
+import { SlotEditor } from '@/components/builder/slot-editor'
+import { NAME_MAX, TeamDetails } from '@/components/builder/team-details'
+import { TeamPanel } from '@/components/builder/team-panel'
+import { useCatalog } from '@/components/builder/use-catalog'
+import { useLeaveGuard } from '@/components/builder/use-leave-guard'
+import { TeamAnalysis } from '@/components/team-analysis'
+import { toast } from '@/components/ui/toast'
+import { resolvePokemon } from '@/lib/pokeapi'
+import { NATURE_NAMES, prettify } from '@/lib/pokemon'
+import { randomTeam, type RandomBuild } from '@/lib/random-team'
 import { matchAbility, parseShowdownTeam, speciesCandidates } from '@/lib/showdown'
 import { loadEsIndex, resolveName, resolveNature, translate, translateType } from '@/lib/showdown-i18n'
-import { createTeam, updateTeam, type BuildInput, type TeamInput } from '@/app/actions/teams'
-import type { BuildRow, Gender, TeamRow } from '@/lib/database.types'
+import { createTeam, updateTeam, type TeamInput } from '@/app/actions/teams'
+import type { BuildRow, TeamRow } from '@/lib/database.types'
 
-/* ------------------------------- Estado local ------------------------------- */
+// El análisis sólo depende de qué Pokémon hay: mover un slider de EVs no debe
+// volver a pintar la tabla de tipos entera.
+const MemoAnalysis = memo(TeamAnalysis)
 
-interface Slot {
-  key: string
-  pokemon_id: number
-  pokemon_name: string
-  nickname: string
-  gender: Gender
-  level: number
-  shiny: boolean
-  ability: string
-  item: string
-  nature: string
-  tera_type: string
-  moves: [string, string, string, string]
-  ivs: Record<StatKey, number>
-  evs: Record<StatKey, number>
+const NO_POSITIONS: ReadonlySet<number> = new Set()
+const BACK = '__back__'
+const UNDO_MS = 8000
+
+/** La acción redirige al terminar bien: esa "excepción" es la señal de éxito. */
+function isRedirect(error: unknown) {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'digest' in error &&
+    typeof error.digest === 'string' &&
+    error.digest.startsWith('NEXT_REDIRECT')
+  )
 }
 
-let keySeed = 0
-const nextKey = () => `slot-${++keySeed}`
-
-function emptySlot(): Slot {
-  return {
-    key: nextKey(),
-    pokemon_id: 0,
-    pokemon_name: '',
-    nickname: '',
-    gender: 'unknown',
-    level: 50,
-    shiny: false,
-    ability: '',
-    item: '',
-    nature: 'hardy',
-    tera_type: '',
-    moves: ['', '', '', ''],
-    ivs: { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 },
-    evs: { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 },
-  }
-}
-
-function slotFromBuild(b: BuildRow): Slot {
-  return {
-    key: nextKey(),
-    pokemon_id: b.pokemon_id,
-    pokemon_name: b.pokemon_name,
-    nickname: b.nickname ?? '',
-    gender: b.gender,
-    level: b.level,
-    shiny: b.shiny,
-    ability: b.ability ?? '',
-    item: b.item ?? '',
-    nature: b.nature ?? 'hardy',
-    tera_type: b.tera_type ?? '',
-    moves: [b.moves[0] ?? '', b.moves[1] ?? '', b.moves[2] ?? '', b.moves[3] ?? ''],
-    ivs: { hp: b.hp_ivs, atk: b.atk_ivs, def: b.def_ivs, spa: b.spa_ivs, spd: b.spd_ivs, spe: b.spe_ivs },
-    evs: { hp: b.hp_evs, atk: b.atk_evs, def: b.def_evs, spa: b.spa_evs, spd: b.spd_evs, spe: b.spe_evs },
-  }
-}
-
-function toInput(s: Slot, index: number): BuildInput {
-  return {
-    slot: index + 1,
-    pokemon_id: s.pokemon_id,
-    pokemon_name: s.pokemon_name,
-    nickname: s.nickname.trim() || null,
-    gender: s.gender,
-    level: s.level,
-    shiny: s.shiny,
-    ability: s.ability || null,
-    item: s.item || null,
-    nature: s.nature || null,
-    tera_type: s.tera_type || null,
-    moves: s.moves.filter(Boolean),
-    hp_ivs: s.ivs.hp, atk_ivs: s.ivs.atk, def_ivs: s.ivs.def,
-    spa_ivs: s.ivs.spa, spd_ivs: s.ivs.spd, spe_ivs: s.ivs.spe,
-    hp_evs: s.evs.hp, atk_evs: s.evs.atk, def_evs: s.evs.def,
-    spa_evs: s.evs.spa, spd_evs: s.evs.spd, spe_evs: s.evs.spe,
-  }
-}
-
-const FORMATS = ['VGC Reg H', 'VGC Reg G', 'Doubles OU', 'Singles OU', 'Ubers', 'Little Cup', 'Casual']
-
-/**
- * Traduce el código de formato de Showdown ("gen9vgc2024regh") a la etiqueta que
- * usa PokeHub ("VGC Reg H"). Si no encaja con ningún patrón conocido devuelve
- * null y se deja el formato que hubiera puesto el usuario.
- */
-function showdownFormatLabel(code: string | null): string | null {
-  if (!code) return null
-  const reg = code.match(/vgc\d*reg([a-z])/i)
-  if (reg) return `VGC Reg ${reg[1].toUpperCase()}`
-  if (/doubles ?ou/i.test(code) || /doublesou/i.test(code)) return 'Doubles OU'
-  if (/ubers/i.test(code)) return 'Ubers'
-  if (/\blc\b|littlecup/i.test(code)) return 'Little Cup'
-  if (/ou$/i.test(code)) return 'Singles OU'
-  return null
-}
-
-/** "adamant" -> "Adamant (+Atk, −SpA)": la naturaleza deja de ser un nombre suelto. */
-function natureLabel(name: string) {
-  const mod = NATURES[name]
-  if (!mod) return `${prettify(name)} (neutra)`
-  return `${prettify(name)} (+${STAT_LABELS[mod[0]]}, −${STAT_LABELS[mod[1]]})`
-}
+type FocusTarget = { kind: 'card'; key: string } | { kind: 'undo' } | { kind: 'notice' } | { kind: 'import' }
 
 /* --------------------------------- Componente -------------------------------- */
 
@@ -139,79 +63,320 @@ export function TeamBuilder({
 }) {
   const editing = Boolean(team)
   const router = useRouter()
+  const reduceMotion = Boolean(useReducedMotion())
   const [pending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
+  const { dex, catalog, dexByName, itemNames, failed: catalogFailed, retry: retryCatalog } = useCatalog()
 
   const [name, setName] = useState(team?.name ?? '')
   const [format, setFormat] = useState(team?.format ?? FORMATS[0])
   const [description, setDescription] = useState(team?.description ?? '')
   const [isPublic, setIsPublic] = useState(team?.is_public ?? true)
-  const [slots, setSlots] = useState<Slot[]>(
-    builds && builds.length
-      ? [...builds].sort((a, b) => a.slot - b.slot).map(slotFromBuild)
-      : [emptySlot()],
+  const [slots, setSlots] = useState<Slot[]>(() =>
+    builds && builds.length ? [...builds].sort((a, b) => a.slot - b.slot).map(slotFromBuild) : [emptySlot()],
   )
+  // Los que llegan con la página no se animan al entrar (ver SlotEditor).
+  const [initialKeys] = useState(() => new Set(slots.map((s) => s.key)))
+  // En un equipo nuevo, el primer hueco ya abierto: es lo primero que hay que rellenar.
+  const [openKey, setOpenKey] = useState<string | null>(() => (editing ? null : (slots[0]?.key ?? null)))
+  // Hueco recién añadido: su selector de especie se abre solo al montarse.
+  const [justAdded, setJustAdded] = useState<string | null>(null)
   const [importOpen, setImportOpen] = useState(false)
+  const [notice, setNotice] = useState<string[] | null>(null)
+  const [saveError, setSaveError] = useState<{ message: string; at: string } | null>(null)
+  const [nameMissing, setNameMissing] = useState(false)
+  const [rolling, setRolling] = useState<ReadonlySet<number>>(NO_POSITIONS)
+  const [askSurprise, setAskSurprise] = useState(false)
+  const [leaveTo, setLeaveTo] = useState<string | null>(null)
+  const [leaving, setLeaving] = useState(false)
+  const [removed, setRemoved] = useState<{ slot: Slot; index: number } | null>(null)
+  const [analysisOpen, setAnalysisOpen] = useState(false)
 
-  const [dex, setDex] = useState<{ id: number; name: string }[]>([])
-  const [items, setItems] = useState<{ id: number; name: string }[]>([])
-
-  useEffect(() => {
-    listPokemon().then(setDex).catch(() => {})
-    listItems().then(setItems).catch(() => {})
+  const importId = useId()
+  const importButtonRef = useRef<HTMLButtonElement>(null)
+  const nameRef = useRef<HTMLInputElement>(null)
+  const undoRef = useRef<HTMLButtonElement>(null)
+  const noticeRef = useRef<HTMLDivElement>(null)
+  const analysisRef = useRef<HTMLElement>(null)
+  const cards = useRef(new Map<string, HTMLElement>())
+  const pendingFocus = useRef<FocusTarget | null>(null)
+  // Fuerza un render aunque nada más cambie: así el foco pendiente nunca se
+  // queda esperando y salta más tarde, en mitad de otra cosa.
+  const [, setFocusTick] = useState(0)
+  const requestFocus = useCallback((target: FocusTarget) => {
+    pendingFocus.current = target
+    setFocusTick((n) => n + 1)
   }, [])
 
-  // Las listas completas (~1300 Pokémon, ~2100 objetos) sólo se transforman una
-  // vez; el picker ya se encarga de filtrar y paginar sobre el resultado.
-  const dexOptions = useMemo<PickerOption[]>(
-    () =>
-      dex.map((d) => ({
-        value: d.name,
-        label: prettify(d.name),
-        icon: spriteUrl(d.id),
-        hint: d.id <= 10000 ? `#${String(d.id).padStart(4, '0')}` : undefined,
-      })),
-    [dex],
-  )
+  // Copias para los manejadores estables (los editores van memoizados).
+  const slotsRef = useRef(slots)
+  const openKeyRef = useRef(openKey)
+  useEffect(() => {
+    slotsRef.current = slots
+    openKeyRef.current = openKey
+  })
 
-  const itemOptions = useMemo<PickerOption[]>(
-    () => items.map((i) => ({ value: i.name, label: prettify(i.name), icon: itemSpriteUrl(i.name) })),
-    [items],
-  )
-
-  const dexByName = useMemo(() => new Map(dex.map((d) => [d.name, d.id])), [dex])
-  const itemNames = useMemo(() => items.map((i) => i.name), [items])
-
-  function patch(index: number, changes: Partial<Slot>) {
-    setSlots((prev) => prev.map((s, i) => (i === index ? { ...s, ...changes } : s)))
-  }
+  // Cambios sin guardar: la huella de lo que se enviaría contra la del principio.
+  const snapshot = teamSnapshot({ name, format, description, isPublic, slots })
+  const [baseline] = useState(snapshot)
+  const dirty = snapshot !== baseline
+  // Un error de guardado deja de valer en cuanto se toca algo.
+  const error = saveError && saveError.at === snapshot ? saveError.message : null
 
   const filled = slots.filter((s) => s.pokemon_id > 0)
+  const surprising = rolling.size > 0
 
-  function save() {
-    setError(null)
-    if (!name.trim()) {
-      setError('Ponle un nombre al equipo antes de publicarlo.')
-      return
-    }
-    if (filled.length === 0) {
-      setError('Añade al menos un Pokémon al equipo.')
-      return
-    }
-
-    const payload: TeamInput = {
-      name: name.trim(),
-      description,
-      format,
-      is_public: isPublic,
-      builds: filled.map(toInput),
-    }
-
-    startTransition(async () => {
-      const res = team ? await updateTeam(team.id, payload) : await createTeam(payload)
-      if (res?.error) setError(res.error)
+  const duplicates = useMemo(() => {
+    const set = new Set<number>()
+    slots.forEach((s, i) => {
+      if (s.pokemon_id > 0 && slots.some((o, j) => j !== i && o.pokemon_id === s.pokemon_id)) set.add(i)
     })
+    return set
+  }, [slots])
+
+  const membersKey = filled.map((s) => `${s.pokemon_id}:${s.pokemon_name}`).join('|')
+  const members = useMemo(
+    () =>
+      membersKey
+        ? membersKey.split('|').map((entry) => {
+            const [id, slug] = entry.split(':')
+            return { pokemonId: Number(id), name: prettify(slug) }
+          })
+        : [],
+    [membersKey],
+  )
+
+  /* ----------------------------- Foco y desplazamiento ----------------------------- */
+
+  // El foco se mueve después de pintar: el elemento de destino puede no existir aún.
+  useEffect(() => {
+    const target = pendingFocus.current
+    if (!target) return
+    pendingFocus.current = null
+    if (target.kind === 'undo') undoRef.current?.focus({ preventScroll: true })
+    else if (target.kind === 'notice') noticeRef.current?.focus({ preventScroll: true })
+    else if (target.kind === 'import') importButtonRef.current?.focus({ preventScroll: true })
+    else cards.current.get(target.key)?.querySelector<HTMLElement>('[data-slot-toggle]')?.focus({ preventScroll: true })
+  })
+
+  const registerCard = useCallback((key: string, el: HTMLElement | null) => {
+    if (el) cards.current.set(key, el)
+    else cards.current.delete(key)
+  }, [])
+
+  /** Lleva un hueco bajo la cabecera. Espera un frame: si es nuevo, aún no está montado. */
+  const scrollToCard = useCallback(
+    (key: string) => {
+      requestAnimationFrame(() => {
+        const el = cards.current.get(key)
+        if (el) scrollToElement(el, { reduce: reduceMotion })
+      })
+    },
+    [reduceMotion],
+  )
+
+  /* ---------------------------------- Huecos ---------------------------------- */
+
+  const patchSlot = useCallback((key: string, changes: SlotPatch) => {
+    setSlots((prev) => prev.map((s) => (s.key === key ? { ...s, ...changes } : s)))
+    setJustAdded((k) => (k === key ? null : k))
+  }, [])
+
+  const toggleSlot = useCallback(
+    (key: string) => {
+      const opening = openKeyRef.current !== key
+      setOpenKey(opening ? key : null)
+      setJustAdded(null)
+      if (opening) {
+        scrollToCard(key)
+        return
+      }
+      // Al plegar desde abajo del panel, la cabecera puede haber quedado por
+      // encima de la pantalla: se vuelve a ella y se le devuelve el foco.
+      requestFocus({ kind: 'card', key })
+      const el = cards.current.get(key)
+      if (el && el.getBoundingClientRect().top < topObstruction()) scrollToCard(key)
+    },
+    [scrollToCard, requestFocus],
+  )
+
+  const selectSlot = useCallback(
+    (key: string) => {
+      setOpenKey(key)
+      setJustAdded(null)
+      requestFocus({ kind: 'card', key })
+      scrollToCard(key)
+    },
+    [scrollToCard, requestFocus],
+  )
+
+  const addSlot = useCallback(() => {
+    if (slotsRef.current.length >= MAX_SLOTS) return
+    const slot = emptySlot()
+    setSlots((prev) => (prev.length >= MAX_SLOTS ? prev : [...prev, slot]))
+    setOpenKey(slot.key)
+    setJustAdded(slot.key)
+    setRemoved(null)
+    scrollToCard(slot.key)
+  }, [scrollToCard])
+
+  const nextSlot = useCallback(
+    (key: string) => {
+      const list = slotsRef.current
+      const next = list[list.findIndex((s) => s.key === key) + 1]
+      if (!next) {
+        addSlot()
+        return
+      }
+      setOpenKey(next.key)
+      if (next.pokemon_id) {
+        setJustAdded(null)
+        requestFocus({ kind: 'card', key: next.key })
+      } else {
+        setJustAdded(next.key)
+      }
+      scrollToCard(next.key)
+    },
+    [addSlot, scrollToCard, requestFocus],
+  )
+
+  // La tarjeta pulsada se queda bajo el dedo y es la vecina la que da la
+  // vuelta. pinElement mide antes de reordenar, así que va primero.
+  const moveSlot = useCallback((key: string, dir: -1 | 1, card: HTMLElement | null) => {
+    const list = slotsRef.current
+    const i = list.findIndex((s) => s.key === key)
+    const j = i + dir
+    if (i < 0 || j < 0 || j >= list.length) return
+    if (card) pinElement(card)
+    const next = [...list]
+    ;[next[i], next[j]] = [next[j], next[i]]
+    setSlots(next)
+  }, [])
+
+  const removeSlot = useCallback((key: string) => {
+    const list = slotsRef.current
+    const index = list.findIndex((s) => s.key === key)
+    if (index < 0 || list.length <= 1) return
+    const slot = list[index]
+    const rest = list.filter((s) => s.key !== key)
+    setSlots(rest)
+    setOpenKey((k) => (k === key ? null : k))
+    // Un hueco vacío no merece "deshacer": se va y el foco pasa al vecino.
+    if (slot.pokemon_id) {
+      setRemoved({ slot, index })
+      requestFocus({ kind: 'undo' })
+    } else {
+      setRemoved(null)
+      const neighbour = rest[Math.min(index, rest.length - 1)]
+      if (neighbour) requestFocus({ kind: 'card', key: neighbour.key })
+    }
+  }, [requestFocus])
+
+  function undoRemove() {
+    if (!removed || slots.length >= MAX_SLOTS) return
+    const { slot, index } = removed
+    setSlots((prev) => (prev.length >= MAX_SLOTS ? prev : [...prev.slice(0, index), slot, ...prev.slice(index)]))
+    setRemoved(null)
+    requestFocus({ kind: 'card', key: slot.key })
+  }
+
+  useEffect(() => {
+    if (!removed) return
+    const timer = setTimeout(() => setRemoved(null), UNDO_MS)
+    return () => clearTimeout(timer)
+  }, [removed])
+
+  /* -------------------------------- Sorpréndeme -------------------------------- */
+
+  function requestSurprise() {
+    if (surprising) return
+    if (filled.length === 0) void surprise('replace')
+    else setAskSurprise(true)
+  }
+
+  async function surprise(mode: 'fill' | 'replace') {
+    const current = slotsRef.current
+    const keep = mode === 'fill' ? current.filter((s) => s.pokemon_id > 0) : []
+    const count = MAX_SLOTS - keep.length
+    if (count <= 0) return
+
+    // Qué huecos del panel giran mientras tanto: los libres, o todos si se empieza de cero.
+    const positions = new Set<number>()
+    for (let i = 0; i < MAX_SLOTS; i++) {
+      if (mode === 'replace' || !current[i]?.pokemon_id) positions.add(i)
+    }
+    setRolling(positions)
+    setRemoved(null)
+    setJustAdded(null)
+
+    try {
+      const results: (RandomBuild | null)[] = await randomTeam(
+        count,
+        new Set(keep.map((s) => s.pokemon_id)),
+        dex,
+      ).catch(() => [])
+      const fresh = results.filter((b): b is RandomBuild => b !== null)
+      if (fresh.length === 0) {
+        toast('No se pudo generar el equipo', {
+          tone: 'error',
+          description: 'La PokéAPI no ha respondido. Comprueba tu conexión e inténtalo otra vez.',
+        })
+        return
+      }
+
+      let next: Slot[]
+      if (mode === 'replace') {
+        next = fresh.map((b) => slotFromRandom(b))
+      } else {
+        // Los huecos vacíos se rellenan en su sitio (conservan la clave y no
+        // se remontan) y lo que sobre se añade al final.
+        const queue = [...fresh]
+        next = slotsRef.current.map((s) => {
+          if (s.pokemon_id) return s
+          const b = queue.shift()
+          return b ? slotFromRandom(b, s.key) : s
+        })
+        for (const b of queue) if (next.length < MAX_SLOTS) next.push(slotFromRandom(b))
+      }
+      setSlots(next)
+      setOpenKey(null)
+
+      const missing = count - fresh.length
+      toast(missing ? `Sorpresa a medias: ${fresh.length} de ${count}` : '¡Equipo sorpresa listo!', {
+        tone: missing ? 'info' : 'success',
+        description: missing
+          ? 'La PokéAPI no ha respondido para todos. Vuelve a probar para completar el equipo.'
+          : 'Es un punto de partida: revisa cada Pokémon y ajústalo a tu gusto.',
+      })
+    } finally {
+      setRolling(NO_POSITIONS)
+    }
+  }
+
+  const surpriseChoices: DialogChoice[] = [
+    {
+      label: 'Completar el equipo',
+      description:
+        filled.length >= MAX_SLOTS
+          ? 'Ya tienes seis Pokémon: no queda hueco libre.'
+          : `Mantiene tus ${filled.length} Pokémon y rellena ${MAX_SLOTS - filled.length === 1 ? 'el hueco libre' : `los ${MAX_SLOTS - filled.length} huecos libres`}.`,
+      icon: <Plus size={20} aria-hidden />,
+      tone: 'primary',
+      disabled: filled.length >= MAX_SLOTS,
+      onSelect: () => void surprise('fill'),
+    },
+    {
+      label: 'Empezar de cero',
+      description: `Sustituye a ${filled.length === 1 ? 'tu Pokémon' : `tus ${filled.length} Pokémon`} por seis al azar.`,
+      icon: <Dices size={20} aria-hidden />,
+      tone: 'danger',
+      onSelect: () => void surprise('replace'),
+    },
+  ]
+
+  /* ------------------------------ Importar Showdown ----------------------------- */
+
+  function importFailed(message: string) {
+    toast(message, { tone: 'error', description: 'Revisa el texto pegado e inténtalo otra vez.' })
   }
 
   /**
@@ -228,7 +393,7 @@ export function TeamBuilder({
     const imported = parseShowdownTeam(text, { isSpecies: (s) => dexByName.has(s) })
     const parsed = imported.builds
     if (parsed.length === 0) {
-      setError('No se ha reconocido ningún Pokémon en el texto pegado.')
+      importFailed('No se ha reconocido ningún Pokémon en el texto pegado.')
       return
     }
 
@@ -286,13 +451,17 @@ export function TeamBuilder({
     }
 
     if (resolved.length === 0) {
-      setError('No se han podido identificar esos Pokémon en la PokéAPI.')
+      importFailed('No se han podido identificar esos Pokémon en la PokéAPI.')
       return
     }
 
     setSlots(resolved)
     setImportOpen(false)
-    setError(null)
+    setSaveError(null)
+    // Plegados: así se ve el resumen y los avisos de los seis de un vistazo.
+    setOpenKey(null)
+    setJustAdded(null)
+    setRemoved(null)
 
     // La cabecera "=== [formato] Nombre ===" trae datos del equipo: se aprovechan
     // sólo si el usuario no ha escrito nada todavía, para no pisarle lo suyo.
@@ -310,640 +479,455 @@ export function TeamBuilder({
       const resto = untranslated.size > 8 ? ` y ${untranslated.size - 8} más` : ''
       partes.push(`revisa a mano: ${lista}${resto}`)
     }
-    setNotice(partes.join(' · ') + '.')
+    setNotice(partes)
+    // El panel desaparece con el foco dentro: pasa al aviso, que se lee entero.
+    requestFocus({ kind: 'notice' })
   }
 
-  return (
-    <div className="mx-auto max-w-[1100px] px-3 sm:px-4">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-extrabold md:text-3xl">
-          {editing ? 'Editar equipo' : 'Nuevo equipo'}
-        </h1>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setImportOpen((v) => !v)}
-            className="flex items-center gap-2 rounded-lg bg-surface-2 px-4 py-2 text-sm font-semibold shadow-card transition hover:bg-line"
-          >
-            <ClipboardPaste size={16} /> Importar de Showdown
-          </button>
-          <button
-            type="button"
-            onClick={save}
-            disabled={pending}
-            className="flex items-center gap-2 rounded-lg bg-brand px-5 py-2 text-sm font-semibold text-brand-fg shadow-card transition hover:bg-brand-strong active:translate-y-0.5 disabled:opacity-60"
-          >
-            {pending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            {editing ? 'Guardar cambios' : 'Publicar equipo'}
-          </button>
-        </div>
-      </div>
+  /* --------------------------------- Guardar --------------------------------- */
 
-      {importOpen && <ImportPanel onImport={importShowdown} onClose={() => setImportOpen(false)} />}
+  function fail(message: string) {
+    setSaveError({ message, at: snapshot })
+  }
 
-      {error && (
-        <p role="alert" className="mb-4 flex items-start gap-2 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2.5 text-sm text-red-600 dark:text-red-300">
-          <AlertTriangle size={16} className="mt-0.5 shrink-0" /> {error}
-        </p>
-      )}
-      {notice && (
-        <p className="mb-4 flex items-start justify-between gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2.5 text-sm text-emerald-700 dark:text-emerald-300">
-          <span>{notice}</span>
-          <button type="button" onClick={() => setNotice(null)} aria-label="Cerrar aviso">
-            <X size={15} />
-          </button>
-        </p>
-      )}
+  function save() {
+    if (pending) return
+    setSaveError(null)
 
-      {/* Datos del equipo */}
-      <section className="mb-5 grid gap-4 rounded-card border border-line bg-surface p-5 shadow-card md:grid-cols-[2fr_1fr]">
-        <label className="block">
-          <span className="mb-1 block text-sm font-semibold">Nombre del equipo</span>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            maxLength={40}
-            placeholder="p. ej. Rain Team 2026"
-            className="h-11 w-full rounded-xl border border-line bg-surface-2 px-4 text-sm outline-none focus:border-brand"
-          />
-        </label>
-
-        <label className="block">
-          <span className="mb-1 block text-sm font-semibold">Formato</span>
-          <input
-            value={format}
-            onChange={(e) => setFormat(e.target.value)}
-            list="formats"
-            className="h-11 w-full rounded-xl border border-line bg-surface-2 px-4 text-sm outline-none focus:border-brand"
-          />
-          <datalist id="formats">
-            {FORMATS.map((f) => <option key={f} value={f} />)}
-          </datalist>
-        </label>
-
-        <label className="block md:col-span-2">
-          <span className="mb-1 block text-sm font-semibold">
-            Descripción <span className="font-normal text-muted">({description.length}/1000)</span>
-          </span>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            maxLength={1000}
-            rows={4}
-            placeholder="Cuenta la estrategia del equipo, los matchups complicados, cómo se juega…"
-            className="w-full resize-y rounded-xl border border-line bg-surface-2 px-4 py-3 text-sm outline-none focus:border-brand"
-          />
-        </label>
-
-        <label className="flex items-center gap-2.5 md:col-span-2">
-          <input
-            type="checkbox"
-            checked={isPublic}
-            onChange={(e) => setIsPublic(e.target.checked)}
-            className="h-5 w-5 accent-[var(--brand)]"
-          />
-          <span className="text-sm">Visible para toda la comunidad</span>
-        </label>
-      </section>
-
-      <TeamOverview slots={slots} />
-
-      {/* Slots */}
-      <div className="flex flex-col gap-4">
-        {slots.map((slot, i) => (
-          <SlotEditor
-            key={slot.key}
-            index={i}
-            slot={slot}
-            dexOptions={dexOptions}
-            itemOptions={itemOptions}
-            duplicate={
-              slot.pokemon_id > 0 &&
-              slots.some((o, j) => j !== i && o.pokemon_id === slot.pokemon_id)
-            }
-            onChange={(c) => patch(i, c)}
-            onRemove={() => setSlots((prev) => prev.filter((_, j) => j !== i))}
-            onMove={(dir) =>
-              setSlots((prev) => {
-                const next = [...prev]
-                const j = i + dir
-                if (j < 0 || j >= next.length) return prev
-                ;[next[i], next[j]] = [next[j], next[i]]
-                return next
-              })
-            }
-            canRemove={slots.length > 1}
-          />
-        ))}
-      </div>
-
-      {slots.length < 6 && (
-        <button
-          type="button"
-          onClick={() => setSlots((prev) => [...prev, emptySlot()])}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-card border-2 border-dashed border-line bg-surface/60 py-6 text-sm font-semibold text-muted transition hover:border-brand hover:text-brand"
-        >
-          <Plus size={18} /> Añadir Pokémon ({slots.length}/6)
-        </button>
-      )}
-
-      <div className="mt-6 flex justify-end gap-2">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="rounded-lg bg-surface-2 px-5 py-2.5 text-sm font-semibold shadow-card transition hover:bg-line"
-        >
-          Cancelar
-        </button>
-        <button
-          type="button"
-          onClick={save}
-          disabled={pending}
-          className="flex items-center gap-2 rounded-lg bg-brand px-6 py-2.5 text-sm font-semibold text-brand-fg shadow-card transition hover:bg-brand-strong active:translate-y-0.5 disabled:opacity-60"
-        >
-          {pending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-          {editing ? 'Guardar cambios' : 'Publicar equipo'}
-        </button>
-      </div>
-    </div>
-  )
-}
-
-/* ------------------------------ Resumen del equipo ---------------------------- */
-
-/** Tira con los seis huecos: da contexto de qué falta sin bajar por la página. */
-function TeamOverview({ slots }: { slots: Slot[] }) {
-  const filled = slots.filter((s) => s.pokemon_id > 0)
-  if (filled.length === 0) return null
-
-  return (
-    <section className="mb-5 flex flex-wrap items-center gap-3 rounded-card border border-line bg-surface p-4 shadow-card">
-      <span className="text-xs font-semibold text-muted">Equipo ({filled.length}/6)</span>
-      <ul className="flex flex-wrap gap-2">
-        {slots.map((s, i) => (
-          <li
-            key={s.key}
-            title={s.pokemon_name ? prettify(s.pokemon_name) : `Hueco ${i + 1} vacío`}
-            className="grid h-12 w-12 place-items-center rounded-xl bg-surface-2 shadow-card"
-          >
-            {s.pokemon_id ? (
-              <Image
-                src={spriteUrl(s.pokemon_id, s.shiny)}
-                alt={prettify(s.pokemon_name)}
-                width={48}
-                height={48}
-                unoptimized
-                className="h-12 w-12 [image-rendering:pixelated] object-contain"
-              />
-            ) : (
-              <span className="text-sm text-muted">{i + 1}</span>
-            )}
-          </li>
-        ))}
-      </ul>
-    </section>
-  )
-}
-
-/* ------------------------------ Panel de importar ----------------------------- */
-
-function ImportPanel({
-  onImport,
-  onClose,
-}: {
-  onImport: (text: string) => Promise<void>
-  onClose: () => void
-}) {
-  const [text, setText] = useState('')
-  const [busy, setBusy] = useState(false)
-
-  // Análisis en vivo: es puro tratamiento de texto (sin red), así que se puede
-  // hacer en cada tecla y decirle al usuario cuántos Pokémon se han reconocido
-  // antes de importar.
-  const preview = useMemo(() => (text.trim() ? parseShowdownTeam(text) : null), [text])
-  const found = preview?.builds.length ?? 0
-
-  return (
-    <section className="mb-5 rounded-card border border-line bg-surface p-5 shadow-card">
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-sm font-bold">Pega tu equipo de Pokémon Showdown</h2>
-        <button onClick={onClose} aria-label="Cerrar" className="rounded-full p-1 text-muted hover:text-ink">
-          <X size={18} />
-        </button>
-      </div>
-
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        rows={16}
-        spellCheck={false}
-        autoCapitalize="off"
-        autoCorrect="off"
-        placeholder={'=== [gen9vgc2024regh] Mi equipo ===\n\nPelipper (F) @ Damp Rock\nAbility: Drizzle\nLevel: 50\nEVs: 252 HP / 4 Def / 252 Spe\nTimid Nature\n- Hurricane\n- Scald\n- Tailwind\n- Protect'}
-        className="min-h-[22rem] w-full resize-y whitespace-pre overflow-auto rounded-xl border border-line bg-surface-2 p-3 font-mono text-xs leading-relaxed outline-none focus:border-brand"
-      />
-
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-        {text.trim() && (
-          <span className={found === 0 ? 'font-semibold text-red-500' : 'font-semibold text-emerald-600 dark:text-emerald-400'}>
-            {found === 0
-              ? 'No se ha reconocido ningún Pokémon'
-              : `${found} Pokémon detectado${found === 1 ? '' : 's'}`}
-          </span>
-        )}
-        {preview?.name && <span className="text-muted">Equipo: «{preview.name}»</span>}
-        {found > 6 && (
-          <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
-            <AlertTriangle size={12} /> Sólo se importarán los 6 primeros
-          </span>
-        )}
-      </div>
-
-      <p className="mt-1.5 text-xs text-muted">
-        Se reconocen la cabecera del equipo, motes, género, objeto, habilidad, naturaleza, nivel,
-        Teratipo, IVs/EVs y hasta cuatro movimientos. Sustituye a los Pokémon que tengas ahora.
-      </p>
-
-      <button
-        type="button"
-        disabled={busy || found === 0}
-        onClick={async () => {
-          setBusy(true)
-          await onImport(text)
-          setBusy(false)
-        }}
-        className="mt-2 flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brand-fg shadow-card transition hover:bg-brand-strong disabled:opacity-60"
-      >
-        {busy && <Loader2 size={16} className="animate-spin" />} Importar
-      </button>
-    </section>
-  )
-}
-
-/* -------------------------------- Editor de slot ------------------------------- */
-
-function SlotEditor({
-  index, slot, dexOptions, itemOptions, duplicate, onChange, onRemove, onMove, canRemove,
-}: {
-  index: number
-  slot: Slot
-  dexOptions: PickerOption[]
-  itemOptions: PickerOption[]
-  duplicate: boolean
-  onChange: (changes: Partial<Slot>) => void
-  onRemove: () => void
-  onMove: (dir: -1 | 1) => void
-  canRemove: boolean
-}) {
-  const [species, setSpecies] = useState<PokemonDetail | null>(null)
-  const [moveInfo, setMoveInfo] = useState<Record<string, MoveDetail>>({})
-
-  useEffect(() => {
-    if (!slot.pokemon_id) {
-      setSpecies(null)
+    if (!name.trim()) {
+      setNameMissing(true)
+      fail('Falta el nombre del equipo.')
+      nameRef.current?.focus()
       return
     }
-    let alive = true
-    resolvePokemon([String(slot.pokemon_id)])
-      .then((p) => { if (alive) setSpecies(p) })
-      .catch(() => {})
-    return () => { alive = false }
-  }, [slot.pokemon_id])
+    if (filled.length === 0) {
+      fail('Añade al menos un Pokémon al equipo.')
+      const first = slots[0]
+      if (first) selectSlot(first.key)
+      return
+    }
+    const overIndex = slots.findIndex((s) => evsLeft(s) < 0)
+    if (overIndex >= 0) {
+      const over = slots[overIndex]
+      fail(`${slotName(over, overIndex)} se pasa de ${-evsLeft(over)} EVs.`)
+      selectSlot(over.key)
+      return
+    }
 
-  // Detalles de los movimientos elegidos, para pintar tipo y categoría.
-  const chosenMoves = slot.moves.filter(Boolean).join(',')
-  useEffect(() => {
-    const names = chosenMoves ? chosenMoves.split(',') : []
-    if (names.length === 0) return
-    let alive = true
-    getMoves(names)
-      .then((list) => {
-        if (!alive) return
-        setMoveInfo((prev) => {
-          const next = { ...prev }
-          for (const m of list) next[m.name] = m
-          return next
-        })
-      })
-      .catch(() => {})
-    return () => { alive = false }
-  }, [chosenMoves])
+    const payload: TeamInput = {
+      name: name.trim(),
+      description,
+      format,
+      is_public: isPublic,
+      builds: filled.map(toInput),
+    }
 
-  const abilityOptions = useMemo<PickerOption[]>(
-    () =>
-      (species?.abilityDetails ?? []).map((a) => ({
-        value: a.name,
-        label: prettify(a.name),
-        iconNode: <span className="h-8 w-8 shrink-0" aria-hidden />,
-        hint: a.hidden ? 'Oculta' : undefined,
-      })),
-    [species],
-  )
-
-  // Acotar los movimientos al learnset real es lo que hace el selector usable:
-  // se pasa de ~900 opciones a las que la especie puede aprender de verdad.
-  const moveOptions = useMemo<PickerOption[]>(
-    () =>
-      (species?.moves ?? []).map((m) => {
-        const info = moveInfo[m]
-        return {
-          value: m,
-          label: prettify(m),
-          iconNode: info ? (
-            <TypeBadge type={info.type} size="sm" className="w-16 shrink-0 justify-center" />
-          ) : (
-            <span className="h-8 w-16 shrink-0" aria-hidden />
-          ),
-          hint: info?.power ? `${info.power}` : undefined,
+    startTransition(async () => {
+      try {
+        const res = team ? await updateTeam(team.id, payload) : await createTeam(payload)
+        if (res?.error) {
+          fail(res.error)
+          toast(editing ? 'No se han podido guardar los cambios' : 'No se ha podido publicar el equipo', {
+            tone: 'error',
+            description: res.error,
+          })
         }
-      }),
-    [species, moveInfo],
-  )
-
-  const teraOptions = useMemo<PickerOption[]>(
-    () =>
-      POKEMON_TYPES.map((t) => ({
-        value: t,
-        label: prettify(t),
-        iconNode: <TypeBadge type={t} size="sm" className="w-16 shrink-0 justify-center" />,
-      })),
-    [],
-  )
-
-  const natureOptions = useMemo<PickerOption[]>(
-    () =>
-      NATURE_NAMES.map((n) => ({
-        value: n,
-        label: natureLabel(n),
-        iconNode: <span className="h-8 w-2 shrink-0" aria-hidden />,
-      })),
-    [],
-  )
-
-  const evUsed = STAT_KEYS.reduce((a, k) => a + slot.evs[k], 0)
-  const evLeft = MAX_EVS_TOTAL - evUsed
-
-  function pickSpecies(value: string) {
-    if (!value) {
-      onChange({ pokemon_id: 0, pokemon_name: '', ability: '', moves: ['', '', '', ''] })
-      return
-    }
-    const found = dexOptions.find((d) => d.value === value)
-    if (!found) return
-    // Al cambiar de especie, habilidad y movimientos dejan de ser válidos.
-    resolvePokemon([value]).then((p) => {
-      if (p) onChange({ pokemon_id: p.id, pokemon_name: p.name, ability: '', moves: ['', '', '', ''] })
+      } catch (err) {
+        if (isRedirect(err)) {
+          // Ya no hay nada que proteger: la acción nos lleva al equipo.
+          setLeaving(true)
+          toast(editing ? 'Cambios guardados' : '¡Equipo publicado!', {
+            tone: 'success',
+            description: editing ? undefined : 'Ya lo puede ver la comunidad.',
+          })
+        } else {
+          fail('No se ha podido conectar con el servidor.')
+          toast('Sin conexión con el servidor', {
+            tone: 'error',
+            description: 'Tus cambios siguen aquí. Inténtalo de nuevo en unos segundos.',
+          })
+        }
+        // La redirección la tiene que recoger Next para navegar.
+        unstable_rethrow(err)
+      }
     })
   }
 
-  return (
-    <section className="rounded-card border border-line bg-surface p-4 shadow-card">
-      <header className="mb-3 flex items-start gap-3">
-        <span className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-surface-2 shadow-card">
-          {slot.pokemon_id ? (
-            <Image
-              src={spriteUrl(slot.pokemon_id, slot.shiny)}
-              alt={prettify(slot.pokemon_name)}
-              width={64}
-              height={64}
-              unoptimized
-              className="h-16 w-16 [image-rendering:pixelated] object-contain"
-            />
-          ) : (
-            <span className="text-xl text-muted">{index + 1}</span>
-          )}
-        </span>
+  // Ctrl/⌘ + S guarda en vez de abrir el "Guardar página" del navegador.
+  const saveRef = useRef(save)
+  useEffect(() => {
+    saveRef.current = save
+  })
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === 's') {
+        e.preventDefault()
+        saveRef.current()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
-        <div className="min-w-0 flex-1">
-          <EntityPicker
-            label={`Pokémon ${index + 1}`}
-            value={slot.pokemon_name}
-            options={dexOptions}
-            onSelect={pickSpecies}
-            placeholder="Busca un Pokémon…"
-            emptyText="Ningún Pokémon coincide"
-            pixelated
-          />
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            {species?.types.map((t) => <TypeBadge key={t} type={t} size="sm" />)}
-            {duplicate && (
-              <span className="flex items-center gap-1 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
-                <AlertTriangle size={11} /> Repetido
-              </span>
+  /* ------------------------------ Salir sin guardar ------------------------------ */
+
+  useLeaveGuard(dirty && !pending && !leaving, setLeaveTo)
+
+  function leave(href: string) {
+    setLeaving(true)
+    if (href !== BACK) router.push(href)
+    else if (window.history.length > 1) router.back()
+    else router.push(team ? `/team/${team.id}` : '/home')
+  }
+
+  function cancel() {
+    if (dirty) setLeaveTo(BACK)
+    else leave(BACK)
+  }
+
+  const leaveChoices: DialogChoice[] = [
+    {
+      label: 'Salir sin guardar',
+      description: editing ? 'Los cambios de este equipo se perderán.' : 'El equipo que estás creando se perderá.',
+      icon: <LogOut size={20} aria-hidden />,
+      tone: 'danger',
+      onSelect: () => {
+        if (leaveTo) leave(leaveTo)
+      },
+    },
+    {
+      label: editing ? 'Guardar cambios' : 'Publicar equipo',
+      description: editing ? 'Se guardan y vas al equipo.' : 'Se publica y vas al equipo.',
+      icon: editing ? <Save size={20} aria-hidden /> : <Send size={20} aria-hidden />,
+      tone: 'soft',
+      onSelect: save,
+    },
+  ]
+
+  /* ---------------------------------- Vista ---------------------------------- */
+
+  function openAnalysis() {
+    setAnalysisOpen(true)
+    requestAnimationFrame(() => {
+      if (analysisRef.current) scrollToElement(analysisRef.current, { reduce: reduceMotion })
+    })
+  }
+
+  const saveProps = {
+    editing,
+    pending,
+    dirty,
+    filled: filled.length,
+    error,
+    onSave: save,
+    onCancel: cancel,
+  }
+
+  const undoRow = removed && (
+    <motion.div
+      key={`undo-${removed.slot.key}`}
+      layout="position"
+      initial={{ opacity: 0, scale: 0.97 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="flex min-h-14 items-center gap-3 rounded-card border-2 border-dashed border-line px-4 py-2 text-sm"
+    >
+      <span className="min-w-0 flex-1 text-muted">
+        <strong className="font-semibold text-ink">{slotName(removed.slot, removed.index)}</strong> ha vuelto a su
+        Poké Ball.
+      </span>
+      {slots.length < MAX_SLOTS && (
+        <button ref={undoRef} type="button" onClick={undoRemove} className="btn btn-soft btn-sm shrink-0">
+          <Undo2 size={15} aria-hidden /> Deshacer
+        </button>
+      )}
+    </motion.div>
+  )
+
+  const reviewNotice = notice && notice.length > 1
+
+  return (
+    <div className="builder-root mx-auto max-w-[1180px] px-3 sm:px-4 md:pt-4">
+      <header className="mb-5 flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand">Creador de equipos</p>
+          <h1 className="mt-1 text-2xl font-extrabold tracking-tight md:text-3xl">
+            {editing ? 'Editar equipo' : 'Nuevo equipo'}
+          </h1>
+          <p className="mt-1 max-w-xl text-sm text-muted [overflow-wrap:anywhere]">
+            {team ? (
+              <>
+                Estás editando <strong className="font-semibold text-ink">«{team.name}»</strong>.
+              </>
+            ) : (
+              'Elige hasta seis Pokémon, ajusta sus builds y compártelo con la comunidad.'
             )}
-          </div>
+          </p>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1">
-          <button type="button" onClick={() => onMove(-1)} aria-label="Subir" className="grid h-9 w-9 place-items-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-ink">
-            <ChevronUp size={16} />
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+          <button
+            ref={importButtonRef}
+            type="button"
+            aria-expanded={importOpen}
+            aria-controls={importId}
+            onClick={() => setImportOpen((v) => !v)}
+            disabled={surprising}
+            className={clsx('btn btn-soft', importOpen && 'bg-brand-soft text-brand')}
+          >
+            <ClipboardPaste size={16} aria-hidden />
+            <span>
+              Importar<span className="max-sm:hidden"> de Showdown</span>
+            </span>
           </button>
-          <button type="button" onClick={() => onMove(1)} aria-label="Bajar" className="grid h-9 w-9 place-items-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-ink">
-            <ChevronDown size={16} />
+          <button
+            type="button"
+            onClick={requestSurprise}
+            disabled={surprising}
+            aria-busy={surprising || undefined}
+            aria-haspopup={filled.length > 0 ? 'dialog' : undefined}
+            className="btn btn-soft builder-dice"
+          >
+            <Dices size={17} aria-hidden />
+            {surprising ? 'Generando…' : 'Sorpréndeme'}
           </button>
-          {canRemove && (
-            <button type="button" onClick={onRemove} aria-label="Quitar Pokémon" className="grid h-9 w-9 place-items-center rounded-lg text-muted transition hover:bg-red-500 hover:text-white">
-              <Trash2 size={16} />
-            </button>
-          )}
         </div>
       </header>
 
-      <div className="grid gap-3 md:grid-cols-3">
-        <Text label="Mote" value={slot.nickname} onChange={(v) => onChange({ nickname: v })} maxLength={20} />
+      <AnimatePresence initial={false}>
+        {importOpen && (
+          <motion.div
+            key="import"
+            id={importId}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={reduceMotion ? { duration: 0 } : { height: { type: 'spring', stiffness: 360, damping: 40 }, opacity: { duration: 0.2 } }}
+            // Margen negativo con padding: el recorte del despliegue no se come la sombra.
+            className="-mx-2 overflow-hidden px-2"
+          >
+            <div className="pb-5 pt-0.5">
+              <ImportPanel
+                filledCount={filled.length}
+                onImport={importShowdown}
+                onClose={() => {
+                  setImportOpen(false)
+                  requestFocus({ kind: 'import' })
+                }}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-        <EntityPicker
-          label="Habilidad"
-          value={slot.ability}
-          options={abilityOptions}
-          onSelect={(v) => onChange({ ability: v })}
-          placeholder={species ? 'Elige una habilidad' : 'Elige antes el Pokémon'}
-          disabled={!species}
-          disabledHint="Elige antes el Pokémon"
-          emptyText="Esta especie no tiene más habilidades"
-        />
-
-        <EntityPicker
-          label="Objeto"
-          value={slot.item}
-          options={itemOptions}
-          onSelect={(v) => onChange({ item: v })}
-          placeholder="Sin objeto"
-          emptyText="Ningún objeto coincide"
-        />
-
-        <EntityPicker
-          label="Naturaleza"
-          value={slot.nature}
-          options={natureOptions}
-          onSelect={(v) => onChange({ nature: v || 'hardy' })}
-          placeholder="Elige naturaleza"
-          allowClear={false}
-        />
-
-        <EntityPicker
-          label="Teratipo"
-          value={slot.tera_type}
-          options={teraOptions}
-          onSelect={(v) => onChange({ tera_type: v })}
-          placeholder="Sin Teratipo"
-        />
-
-        <div className="grid grid-cols-3 gap-2">
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold">Nivel</span>
-            <input
-              type="number"
-              min={1}
-              max={100}
-              value={slot.level}
-              onChange={(e) => onChange({ level: clampNum(e.target.value, 1, 100, 50) })}
-              className="h-11 w-full rounded-xl border border-line bg-surface-2 px-2 text-sm outline-none focus:border-brand"
-            />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold">Género</span>
-            <select
-              value={slot.gender}
-              onChange={(e) => onChange({ gender: e.target.value as Gender })}
-              className="h-11 w-full rounded-xl border border-line bg-surface-2 px-1 text-sm outline-none focus:border-brand"
-            >
-              <option value="unknown">—</option>
-              <option value="male">♂</option>
-              <option value="female">♀</option>
-            </select>
-          </label>
-          <label className="flex flex-col">
-            <span className="mb-1 block text-xs font-semibold">Shiny</span>
-            <button
-              type="button"
-              onClick={() => onChange({ shiny: !slot.shiny })}
-              aria-pressed={slot.shiny}
-              className={`flex h-11 items-center justify-center rounded-xl border transition ${
-                slot.shiny
-                  ? 'border-brand bg-brand/15 text-brand'
-                  : 'border-line bg-surface-2 text-muted hover:text-ink'
-              }`}
-            >
-              <Sparkles size={16} fill={slot.shiny ? 'currentColor' : 'none'} />
-            </button>
-          </label>
-        </div>
-      </div>
-
-      {/* Movimientos */}
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        {slot.moves.map((m, i) => (
-          <EntityPicker
-            key={i}
-            label={`Movimiento ${i + 1}`}
-            value={m}
-            options={moveOptions}
-            onSelect={(v) => {
-              const moves = [...slot.moves] as Slot['moves']
-              moves[i] = v
-              onChange({ moves })
-            }}
-            placeholder={species ? 'Busca un movimiento…' : 'Elige antes el Pokémon'}
-            disabled={!species}
-            disabledHint="Elige antes el Pokémon"
-            emptyText="Este Pokémon no aprende ese movimiento"
-          />
-        ))}
-      </div>
-
-      {/* IVs / EVs */}
-      <div className="mt-4 rounded-xl bg-surface-2 p-3 shadow-pressed">
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs font-semibold">
-          <span>IVs y EVs</span>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => onChange({ evs: { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 } })}
-              className="rounded-md px-2 py-0.5 text-[11px] font-semibold text-muted transition hover:bg-line hover:text-ink"
-            >
-              Reiniciar EVs
-            </button>
-            <span className={evLeft < 0 ? 'text-red-500' : 'text-muted'}>
-              {evUsed}/{MAX_EVS_TOTAL} EVs · quedan {evLeft}
-            </span>
+      {notice && (
+        <div
+          ref={noticeRef}
+          tabIndex={-1}
+          role="status"
+          className={clsx(
+            'card mb-5 flex animate-fade-up items-start gap-3 p-4 outline-none',
+            reviewNotice ? 'border-warning/50 bg-warning-soft' : 'border-success/50 bg-success-soft',
+          )}
+        >
+          <span
+            aria-hidden
+            className={clsx(
+              'grid size-9 shrink-0 place-items-center rounded-full',
+              reviewNotice ? 'bg-warning text-white dark:text-black' : 'bg-success text-white dark:text-black',
+            )}
+          >
+            {reviewNotice ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}
+          </span>
+          <div className="min-w-0 flex-1 pt-1.5 text-sm">
+            <p className="font-bold">{notice[0]}.</p>
+            {notice.length > 1 && (
+              <ul className="mt-1.5 space-y-1 [overflow-wrap:anywhere]">
+                {notice.slice(1).map((parte) => (
+                  <li key={parte} className="flex gap-2">
+                    <span aria-hidden className="mt-2 size-1 shrink-0 rounded-full bg-current opacity-60" />
+                    {parte.charAt(0).toUpperCase() + parte.slice(1)}.
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
+          <button
+            type="button"
+            onClick={() => setNotice(null)}
+            aria-label="Cerrar aviso"
+            className="btn btn-ghost btn-icon btn-sm -mr-1 -mt-1 text-muted hover:text-ink"
+          >
+            <X size={16} aria-hidden />
+          </button>
         </div>
+      )}
 
-        <div className="space-y-1.5">
-          {STAT_KEYS.map((k) => {
-            const total = species
-              ? computeStat(k, species.baseStats[k], slot.ivs[k], slot.evs[k], slot.level, slot.nature)
-              : null
-            const mod = natureModifier(slot.nature, k)
-            return (
-              <div key={k} className="flex items-center gap-2 text-xs">
-                <span
-                  className="w-8 shrink-0 font-bold"
-                  style={{ color: mod > 1 ? '#e11d48' : mod < 1 ? '#2563eb' : undefined }}
-                  title={mod > 1 ? 'Potenciada por la naturaleza' : mod < 1 ? 'Reducida por la naturaleza' : undefined}
-                >
-                  {STAT_LABELS[k]}
-                </span>
-                <input
-                  type="number" min={0} max={MAX_IV} value={slot.ivs[k]}
-                  onChange={(e) => onChange({ ivs: { ...slot.ivs, [k]: clampNum(e.target.value, 0, MAX_IV, 31) } })}
-                  aria-label={`IV de ${STAT_LABELS[k]}`}
-                  className="h-8 w-14 shrink-0 rounded-lg border border-line bg-bg-elevated px-1.5 text-center outline-none focus:border-brand"
-                />
-                <input
-                  type="range" min={0} max={MAX_EV} step={4} value={slot.evs[k]}
-                  onChange={(e) => onChange({ evs: { ...slot.evs, [k]: Number(e.target.value) } })}
-                  aria-label={`EV de ${STAT_LABELS[k]}`}
-                  className="min-w-0 flex-1 accent-[var(--brand)]"
-                />
-                <input
-                  type="number" min={0} max={MAX_EV} step={4} value={slot.evs[k]}
-                  onChange={(e) => onChange({ evs: { ...slot.evs, [k]: clampNum(e.target.value, 0, MAX_EV, 0) } })}
-                  aria-label={`EV de ${STAT_LABELS[k]} (número)`}
-                  className="h-8 w-16 shrink-0 rounded-lg border border-line bg-bg-elevated px-1.5 text-center outline-none focus:border-brand"
-                />
-                <span
-                  className="w-9 shrink-0 text-right font-bold tabular-nums"
-                  style={{ color: total ? statColor(total) : undefined }}
-                >
-                  {total ?? '—'}
-                </span>
+      {catalogFailed && (
+        <div role="alert" className="card mb-5 flex flex-wrap items-center gap-x-3 gap-y-2 border-warning/50 bg-warning-soft p-4 text-sm">
+          <AlertTriangle size={18} aria-hidden className="shrink-0 text-warning" />
+          <p className="min-w-0 flex-1">
+            No se ha podido cargar la Pokédex completa. Puedes seguir editando lo que ya tienes.
+          </p>
+          <button type="button" onClick={retryCatalog} className="btn btn-soft btn-sm">
+            <RotateCcw size={14} aria-hidden /> Reintentar
+          </button>
+        </div>
+      )}
+
+      {/* Misma rejilla que builder-skeleton.tsx: si cambia aquí, cambiarla también allí. */}
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_21rem] xl:grid-cols-[minmax(0,1fr)_23rem]">
+        {/* Primero en el DOM: en móvil el equipo va arriba; en escritorio, en la columna lateral. */}
+        <aside aria-label="Resumen del equipo" className="min-w-0 lg:col-start-2 lg:row-start-1 lg:self-stretch">
+          <div className="builder-rail flex flex-col gap-4">
+            <TeamPanel
+              slots={slots}
+              openKey={openKey}
+              rolling={rolling}
+              duplicates={duplicates}
+              onSelect={selectSlot}
+              onAdd={addSlot}
+            >
+              <div className="mt-4 border-t border-line pt-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted">Tipos del equipo</h3>
+                  <button
+                    type="button"
+                    onClick={openAnalysis}
+                    className="rounded-md text-xs font-semibold text-brand hover:underline"
+                  >
+                    Análisis completo
+                  </button>
+                </div>
+                <MemoAnalysis members={members} compact />
               </div>
-            )
-          })}
+            </TeamPanel>
+            <SaveCard {...saveProps} />
+          </div>
+        </aside>
+
+        <div className="min-w-0 space-y-5 lg:col-start-1 lg:row-start-1">
+          <TeamDetails
+            name={name}
+            format={format}
+            description={description}
+            isPublic={isPublic}
+            nameError={nameMissing && !name.trim() ? 'Ponle un nombre al equipo antes de guardarlo.' : null}
+            nameRef={nameRef}
+            onName={(v) => setName(v.slice(0, NAME_MAX))}
+            onFormat={setFormat}
+            onDescription={setDescription}
+            onPublic={setIsPublic}
+          />
+
+          <section aria-labelledby="builder-slots-title">
+            <div className="mb-3 flex items-baseline justify-between gap-3 px-1">
+              <h2 id="builder-slots-title" className="text-lg font-extrabold">
+                Pokémon
+              </h2>
+              <p className="text-xs text-muted">
+                {filled.length === 0
+                  ? 'Aún no hay ninguno'
+                  : `${filled.length} de ${MAX_SLOTS}${duplicates.size ? ' · hay repetidos' : ''}`}
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              {slots.map((slot, i) => (
+                <Fragment key={slot.key}>
+                  {removed && removed.index === i && undoRow}
+                  <SlotEditor
+                    slot={slot}
+                    index={i}
+                    count={slots.length}
+                    open={openKey === slot.key}
+                    duplicate={duplicates.has(i)}
+                    autoPick={justAdded === slot.key}
+                    appear={!initialKeys.has(slot.key)}
+                    catalog={catalog}
+                    onToggle={toggleSlot}
+                    onPatch={patchSlot}
+                    onMove={moveSlot}
+                    onRemove={removeSlot}
+                    onNext={nextSlot}
+                    registerCard={registerCard}
+                  />
+                </Fragment>
+              ))}
+              {removed && removed.index >= slots.length && undoRow}
+
+              {slots.length < MAX_SLOTS && (
+                <motion.button
+                  layout="position"
+                  type="button"
+                  onClick={addSlot}
+                  disabled={surprising}
+                  className="group flex min-h-16 w-full items-center justify-center gap-2 rounded-card border-2 border-dashed border-line bg-surface/50 px-4 py-4 text-sm font-semibold text-muted transition-colors duration-(--dur) hover:border-brand hover:bg-brand-soft hover:text-brand disabled:opacity-60"
+                >
+                  <span className="grid size-7 place-items-center rounded-full bg-surface-2 shadow-card transition-transform duration-(--dur) ease-(--ease-spring) group-hover:rotate-90">
+                    <Plus size={16} strokeWidth={2.6} aria-hidden />
+                  </span>
+                  Añadir Pokémon
+                  <span className="font-normal tabular-nums">
+                    ({slots.length}/{MAX_SLOTS})
+                  </span>
+                </motion.button>
+              )}
+            </div>
+          </section>
+
+          <section ref={analysisRef} aria-labelledby="builder-analysis-title">
+            <h2 id="builder-analysis-title">
+              <button
+                type="button"
+                aria-expanded={analysisOpen}
+                aria-controls="builder-analysis"
+                onClick={() => setAnalysisOpen((v) => !v)}
+                className="card card-hover flex w-full items-center gap-3 p-4 text-left"
+              >
+                <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-2xl bg-brand-soft text-brand">
+                  <ChartColumn size={19} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-base font-extrabold">Análisis completo</span>
+                  <span className="block text-xs font-normal text-muted">
+                    Debilidades, resistencias, velocidad y estadísticas del equipo
+                  </span>
+                </span>
+                <ChevronDown
+                  size={18}
+                  aria-hidden
+                  className={clsx('shrink-0 text-muted transition-transform duration-(--dur-slow) ease-(--ease-spring)', analysisOpen && 'rotate-180')}
+                />
+              </button>
+            </h2>
+            {analysisOpen && (
+              <div id="builder-analysis" className="mt-4 animate-fade-in">
+                <MemoAnalysis members={members} />
+              </div>
+            )}
+          </section>
         </div>
       </div>
-    </section>
-  )
-}
 
-function clampNum(raw: string, min: number, max: number, fallback: number) {
-  const n = Number(raw)
-  if (Number.isNaN(n)) return fallback
-  return Math.max(min, Math.min(max, Math.round(n)))
-}
+      {/* Hueco para que la barra fija no tape el final de la página. */}
+      <div aria-hidden className="h-16 lg:hidden" />
+      <SaveBar {...saveProps} />
 
-/* ------------------------------ Campos reutilizables ----------------------------- */
-
-function Text({
-  label, value, onChange, maxLength,
-}: {
-  label: string
-  value: string
-  onChange: (v: string) => void
-  maxLength?: number
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-xs font-semibold">{label}</span>
-      <input
-        value={value}
-        maxLength={maxLength}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="Opcional"
-        className="h-11 w-full rounded-xl border border-line bg-surface-2 px-3 text-sm outline-none focus:border-brand"
+      <ChoiceDialog
+        open={askSurprise}
+        onClose={() => setAskSurprise(false)}
+        title="¿Qué hacemos con tu equipo?"
+        description="«Sorpréndeme» genera Pokémon al azar con builds de competitivo como punto de partida."
+        choices={surpriseChoices}
       />
-    </label>
+
+      <ChoiceDialog
+        open={leaveTo !== null}
+        onClose={() => setLeaveTo(null)}
+        title={editing ? '¿Salir sin guardar los cambios?' : '¿Salir sin publicar el equipo?'}
+        choices={leaveChoices}
+        cancelLabel="Seguir editando"
+      />
+    </div>
   )
 }

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { Check, Copy, Share2 } from 'lucide-react'
+import clsx from 'clsx'
+import { toast } from '@/components/ui/toast'
 
 /**
  * Compartir con la API nativa del sistema y, donde no exista (escritorio), caer
@@ -23,21 +25,31 @@ export function useShare(path: string, title: string) {
     return () => clearTimeout(id)
   }, [copied])
 
-  async function share() {
-    const url = `${window.location.origin}${path}`
+  async function copy(url: string) {
     try {
-      if (navigator.share) {
-        await navigator.share({ title, url })
-        return
-      }
       await navigator.clipboard.writeText(url)
       setCopied(true)
+      toast('Enlace copiado', { tone: 'success' })
     } catch {
-      // El usuario canceló el diálogo, o el portapapeles está bloqueado.
-      try {
-        await navigator.clipboard.writeText(url)
-        setCopied(true)
-      } catch { /* sin portapapeles disponible */ }
+      toast('No se pudo copiar el enlace', {
+        tone: 'error',
+        description: 'Tu navegador no deja usar el portapapeles.',
+      })
+    }
+  }
+
+  async function share() {
+    const url = `${window.location.origin}${path}`
+    if (typeof navigator.share !== 'function') {
+      await copy(url)
+      return
+    }
+    try {
+      await navigator.share({ title, url })
+    } catch (error) {
+      // Cerrar la hoja de compartir no es un error: el usuario ha cambiado de idea.
+      if (error instanceof DOMException && error.name === 'AbortError') return
+      await copy(url)
     }
   }
 
@@ -57,6 +69,16 @@ export function ShareButton({
   const label = copied ? 'Enlace copiado' : canShare ? 'Compartir' : 'Copiar enlace'
   const Icon = copied ? Check : canShare ? Share2 : Copy
 
+  // La key vuelve a montar el icono en cada cambio para que entre con un pop.
+  const icon = (
+    <Icon
+      key={copied ? 'ok' : 'idle'}
+      size={variant === 'icon' ? 18 : 16}
+      aria-hidden
+      className={clsx(copied && 'animate-pop text-success')}
+    />
+  )
+
   if (variant === 'icon') {
     return (
       <button
@@ -64,11 +86,9 @@ export function ShareButton({
         onClick={share}
         aria-label={label}
         title={label}
-        className={`flex min-h-10 min-w-10 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-sm transition hover:bg-line/40 sm:min-h-0 sm:min-w-0 sm:px-2.5 sm:py-1 ${
-          copied ? 'text-emerald-500' : ''
-        }`}
+        className="btn btn-ghost btn-icon hover:text-ink"
       >
-        <Icon size={17} />
+        {icon}
       </button>
     )
   }
@@ -77,11 +97,10 @@ export function ShareButton({
     <button
       type="button"
       onClick={share}
-      className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold shadow-card transition active:translate-y-0.5 ${
-        copied ? 'bg-emerald-500 text-white' : 'bg-surface-2 hover:bg-line'
-      }`}
+      className={clsx('btn', copied ? 'bg-success-soft text-success shadow-card' : 'btn-soft')}
     >
-      <Icon size={16} /> {label}
+      {icon}
+      {label}
     </button>
   )
 }

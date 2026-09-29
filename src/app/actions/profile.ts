@@ -9,6 +9,8 @@ export interface ProfileState {
 }
 
 const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/
+// El mismo tope que aplica el alta (handle_new_user recorta a 40).
+const DISPLAY_NAME_MAX = 40
 
 export async function updateProfile(
   _prev: ProfileState,
@@ -21,6 +23,11 @@ export async function updateProfile(
 
   if (!USERNAME_RE.test(username)) {
     return { error: 'El usuario debe tener entre 3 y 20 caracteres (letras, números o _).' }
+  }
+  // La tabla no lo limita: sin esto, saltarse el maxLength del formulario
+  // permitiría nombres que rompen las tarjetas y cabeceras.
+  if (displayName.length > DISPLAY_NAME_MAX) {
+    return { error: `El nombre para mostrar no puede superar ${DISPLAY_NAME_MAX} caracteres.` }
   }
   if (bio.length > 250) return { error: 'La biografía no puede superar 250 caracteres.' }
   if (avatarUrl && !/^https:\/\/.+/i.test(avatarUrl)) {

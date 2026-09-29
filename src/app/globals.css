@@ -1,5 +1,18 @@
 @import 'tailwindcss';
 
+/* Hojas por área: cada una la mantiene su equipo y se inyecta aquí para que
+   pueda usar @apply, @utility y los tokens del tema. */
+@import '../styles/shell.css';
+@import '../styles/auth.css';
+@import '../styles/feed.css';
+@import '../styles/pokemon.css';
+@import '../styles/team.css';
+@import '../styles/builder.css';
+@import '../styles/profile.css';
+@import '../styles/search.css';
+@import '../styles/chat.css';
+@import '../styles/extras.css';
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ---------------------------------------------------------------
@@ -17,11 +30,29 @@
   --brand: #d60a0a;
   --brand-strong: #a80000;
   --brand-fg: #ffffff;
+  --brand-soft: rgb(214 10 10 / 0.12);
   --band: #0d0d0d;
   --ring: #d60a0a4d;
   --shadow: 0 4px 6px rgb(0 0 0 / 0.22);
   --shadow-lg: 0 10px 24px rgb(0 0 0 / 0.24);
   --inset: inset 0 4px 6px rgb(0 0 0 / 0.28), inset 0 -4px 6px rgb(0 0 0 / 0.08);
+
+  /* Estados. Tonos -700 en claro para que el texto tenga contraste sobre el fondo rosado. */
+  --success: #15803d;
+  --success-soft: rgb(22 163 74 / 0.14);
+  --danger: #dc2626;
+  --danger-soft: rgb(220 38 38 / 0.12);
+  --warning: #b45309;
+  --warning-soft: rgb(217 119 6 / 0.15);
+
+  /* Brillos: el reflejo de los skeletons y el barrido de .shine. */
+  --sheen: rgb(255 255 255 / 0.6);
+  --shine: rgb(255 255 255 / 0.45);
+  --brand-gradient: linear-gradient(115deg, #ff6a3d 0%, #e3131b 45%, #a3001f 100%);
+
+  /* Halo de fondo de la app: apenas perceptible, sólo da profundidad. */
+  --bg-glow-1: rgb(214 10 10 / 0.07);
+  --bg-glow-2: rgb(255 255 255 / 0.55);
 
   /* Pokéball (tema claro). Las marcas de Master Ball van en transparente. */
   --ball-top-1: #ff4438;
@@ -33,6 +64,23 @@
   --ball-glow: #ff44384d;
   --ball-mark: transparent;
   --ball-mark-m: transparent;
+
+  /* Movimiento. Fuera de @theme a propósito: así existen siempre y cualquier
+     CSS plano o estilo inline puede usarlos (ease-(--ease-spring) en Tailwind). */
+  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+  --ease-out-expo: cubic-bezier(.16, 1, .3, 1);
+  --ease-in-out: cubic-bezier(.65, 0, .35, 1);
+  --dur-fast: 150ms;
+  --dur: 250ms;
+  --dur-slow: 450ms;
+
+  /* Medidas del armazón, para calcular huecos sin repetir números mágicos. */
+  --header-h: 92px;
+  --bottomnav-h: 4rem;
+}
+
+@media (min-width: 48rem) {
+  :root { --header-h: 112px; }
 }
 
 .dark {
@@ -46,11 +94,28 @@
   --brand: #8a4dff;
   --brand-strong: #6f34e0;
   --brand-fg: #ffffff;
+  --brand-soft: rgb(138 77 255 / 0.16);
   --band: #060409;
   --ring: #8a4dff59;
   --shadow: 0 4px 10px rgb(0 0 0 / 0.5);
   --shadow-lg: 0 12px 30px rgb(0 0 0 / 0.55);
   --inset: inset 0 4px 8px rgb(0 0 0 / 0.55), inset 0 -3px 6px rgb(255 255 255 / 0.04);
+
+  /* En oscuro los tonos -400: los -700 se hundirían en el fondo. */
+  --success: #4ade80;
+  --success-soft: rgb(74 222 128 / 0.14);
+  --danger: #f87171;
+  --danger-soft: rgb(248 113 113 / 0.16);
+  --warning: #fbbf24;
+  --warning-soft: rgb(251 191 36 / 0.15);
+
+  --sheen: rgb(255 255 255 / 0.07);
+  --shine: rgb(255 255 255 / 0.16);
+  --brand-gradient: linear-gradient(115deg, #c39bff 0%, #8a4dff 45%, #ff5fa8 100%);
+
+  /* Morado de Master Ball arriba y un toque rosa de sus marcas en la esquina. */
+  --bg-glow-1: rgb(138 77 255 / 0.16);
+  --bg-glow-2: rgb(255 95 168 / 0.06);
 
   /* Master Ball: mitad superior morada, marcas rosas y "M" blanca. */
   --ball-top-1: #9d63ff;
@@ -75,7 +140,14 @@
   --color-brand: var(--brand);
   --color-brand-strong: var(--brand-strong);
   --color-brand-fg: var(--brand-fg);
+  --color-brand-soft: var(--brand-soft);
   --color-band: var(--band);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
 
   --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
 
@@ -86,13 +158,401 @@
   --radius-card: 0.75rem;
 }
 
+/* Las entradas usan `backwards` y no `both`: el estado final coincide con el
+   natural, y así la animación no se queda "sujetando" transform/opacity y deja
+   libres los hover que muevan la tarjeta. */
+@theme {
+  --animate-fade-in: ph-fade-in .4s cubic-bezier(.16, 1, .3, 1) backwards;
+  --animate-fade-up: ph-fade-up .5s cubic-bezier(.16, 1, .3, 1) backwards;
+  --animate-scale-in: ph-scale-in .35s cubic-bezier(.16, 1, .3, 1) backwards;
+  --animate-pop: ph-pop .45s cubic-bezier(.34, 1.56, .64, 1);
+  --animate-float: ph-float 3.6s ease-in-out infinite;
+  --animate-float-shadow: ph-float-shadow 3.6s ease-in-out infinite;
+  --animate-wiggle: ph-wiggle .6s ease-in-out;
+  --animate-shimmer: ph-shimmer 1.6s cubic-bezier(.65, 0, .35, 1) infinite;
+  --animate-slide-up: ph-slide-up .45s cubic-bezier(.16, 1, .3, 1) backwards;
+  --animate-bounce-in: ph-bounce-in .6s cubic-bezier(.16, 1, .3, 1) backwards;
+  --animate-heartbeat: ph-heartbeat 1.6s ease-in-out infinite;
+  --animate-spin-slow: ph-spin 6s linear infinite;
+  --animate-catch: ph-catch 2.4s ease-in-out infinite;
+}
+
+/* ---------------------------------------------------------------
+   Keyframes compartidos. Van fuera de @theme para que se emitan siempre,
+   aunque ninguna clase animate-* los use, y sirvan desde CSS plano.
+   Animan `transform`, no `translate`/`scale`: así se suman a las utilidades
+   de posición de Tailwind (que usan las propiedades individuales) sin pisarlas.
+   --------------------------------------------------------------- */
+@keyframes ph-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ph-fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes ph-scale-in {
+  from { opacity: 0; transform: scale(.94); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes ph-pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.3); }
+  65% { transform: scale(.9); }
+  85% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+@keyframes ph-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+
+/* Sombra que acompaña a ph-float: encoge y se aclara cuando el objeto sube. */
+@keyframes ph-float-shadow {
+  0%, 100% { transform: scaleX(1); opacity: .9; }
+  50% { transform: scaleX(.72); opacity: .5; }
+}
+
+@keyframes ph-wiggle {
+  0%, 100% { transform: rotate(0); }
+  20% { transform: rotate(-12deg); }
+  40% { transform: rotate(10deg); }
+  60% { transform: rotate(-6deg); }
+  80% { transform: rotate(3deg); }
+}
+
+/* Pensado para un fondo al 200 % de ancho: el brillo cruza de izquierda a derecha. */
+@keyframes ph-shimmer {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
+}
+
+@keyframes ph-slide-up {
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes ph-bounce-in {
+  0% { opacity: 0; transform: scale(.3); }
+  50% { opacity: 1; transform: scale(1.08); }
+  75% { transform: scale(.96); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes ph-heartbeat {
+  0%, 44%, 100% { transform: scale(1); }
+  12% { transform: scale(1.22); }
+  24% { transform: scale(1); }
+  34% { transform: scale(1.16); }
+}
+
+@keyframes ph-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Captura: tres bamboleos con pausa entre ellos, un "clic" de asentamiento y
+   reposo. El eje va abajo, como una bola que se balancea en el suelo. */
+@keyframes ph-catch {
+  0%, 100% { transform: rotate(0); transform-origin: 50% 88%; }
+  5% { transform: rotate(-22deg); }
+  10% { transform: rotate(12deg); }
+  14% { transform: rotate(0); }
+  24% { transform: rotate(0); }
+  29% { transform: rotate(22deg); }
+  34% { transform: rotate(-12deg); }
+  38% { transform: rotate(0); }
+  48% { transform: rotate(0); }
+  53% { transform: rotate(-22deg); }
+  58% { transform: rotate(12deg); }
+  62% { transform: rotate(0); }
+  66% { transform: scale(1.06, .94); }
+  71% { transform: scale(1); }
+}
+
+/* Barra de tiempo restante de los toasts. */
+@keyframes ph-progress {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+/* ---------------------------------------------------------------
+   Utilidades propias. Se combinan con variantes (md:card, hover:…)
+   y con el resto de Tailwind como cualquier otra.
+   --------------------------------------------------------------- */
+
+/* Entrada escalonada: style={{ '--i': n }}. A partir del ítem 14 deja de
+   sumar retraso; en un feed largo nadie espera un segundo a ver una tarjeta. */
+@utility stagger-item {
+  animation: ph-fade-up .5s var(--ease-out-expo) backwards;
+  animation-delay: calc(min(var(--i, 0), 14) * 45ms);
+}
+
+@utility card {
+  @apply rounded-card border border-line bg-surface shadow-card;
+}
+
+/* Misma lista de transiciones en card-hover, pressable y btn: si se combinan,
+   gane la que gane en la cascada, no se pierde ninguna. */
+@utility card-hover {
+  transition-property: translate, scale, box-shadow, background-color, border-color, color, opacity;
+  transition-duration: var(--dur);
+  transition-timing-function: var(--ease-out-expo);
+
+  @media (hover: hover) {
+    &:hover {
+      translate: 0 -2px;
+      @apply shadow-float;
+    }
+  }
+}
+
+/* Hundir rápido y soltar con calma: así se siente como un botón físico. */
+@utility pressable {
+  transition-property: translate, scale, box-shadow, background-color, border-color, color, opacity;
+  transition-duration: var(--dur);
+  transition-timing-function: var(--ease-out-expo);
+
+  &:active {
+    scale: .97;
+    transition-duration: var(--dur-fast);
+  }
+}
+
+@utility glass {
+  background-color: var(--bg-elevated);
+
+  @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background-color: color-mix(in srgb, var(--bg-elevated) 74%, transparent);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+    backdrop-filter: blur(14px) saturate(1.4);
+  }
+}
+
+/* Base translúcida derivada del color de texto: se ve igual de bien sobre
+   bg, surface o bg-elevated sin tener que elegir un gris por contexto. */
+@utility skeleton {
+  background-color: color-mix(in srgb, var(--text) 9%, transparent);
+  background-image: linear-gradient(100deg, transparent 30%, var(--sheen) 50%, transparent 70%);
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: ph-shimmer 1.6s var(--ease-in-out) infinite;
+}
+
+@utility btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  height: 2.75rem;
+  padding-inline: 1.25rem;
+  border-radius: 9999px;
+  font-size: .875rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  white-space: nowrap;
+  user-select: none;
+  cursor: pointer;
+  transition-property: translate, scale, box-shadow, background-color, border-color, color, opacity;
+  transition-duration: var(--dur);
+  transition-timing-function: var(--ease-out-expo);
+
+  &:active:not(:disabled, [aria-disabled='true']) {
+    scale: .97;
+    transition-duration: var(--dur-fast);
+  }
+
+  &:disabled,
+  &[aria-disabled='true'] {
+    opacity: .6;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+}
+
+@utility btn-primary {
+  background-color: var(--brand);
+  color: var(--brand-fg);
+  box-shadow: var(--shadow);
+
+  @media (hover: hover) {
+    &:hover:not(:disabled, [aria-disabled='true']) {
+      background-color: var(--brand-strong);
+      box-shadow: var(--shadow), 0 8px 22px -6px color-mix(in srgb, var(--brand) 65%, transparent);
+    }
+  }
+}
+
+@utility btn-soft {
+  background-color: var(--surface-2);
+  color: var(--text);
+  box-shadow: var(--shadow);
+
+  @media (hover: hover) {
+    &:hover:not(:disabled, [aria-disabled='true']) {
+      background-color: var(--border);
+    }
+  }
+}
+
+@utility btn-ghost {
+  background-color: transparent;
+  color: inherit;
+
+  @media (hover: hover) {
+    &:hover:not(:disabled, [aria-disabled='true']) {
+      background-color: var(--surface-2);
+    }
+  }
+}
+
+/* Suave por defecto y sólido al pasar el ratón: lo destructivo se reconoce
+   sin gritar. El sólido se oscurece para que el texto blanco tenga contraste
+   también con el rojo claro del tema oscuro. */
+@utility btn-danger {
+  background-color: var(--danger-soft);
+  color: var(--danger);
+
+  @media (hover: hover) {
+    &:hover:not(:disabled, [aria-disabled='true']) {
+      background-color: color-mix(in oklab, var(--danger) 80%, black);
+      color: #fff;
+    }
+  }
+}
+
+/* Los tamaños se combinan con btn-icon mediante selector compuesto: sin él,
+   el orden en que Tailwind emite las utilidades decidiría el tamaño. */
+@utility btn-sm {
+  height: 2.25rem;
+  padding-inline: 1rem;
+  font-size: 13px;
+  line-height: 1.125rem;
+
+  &.btn-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+  }
+}
+
+@utility btn-lg {
+  height: 3rem;
+  padding-inline: 1.5rem;
+  font-size: 15px;
+  line-height: 1.375rem;
+
+  &.btn-icon {
+    width: 3rem;
+    height: 3rem;
+    padding: 0;
+  }
+}
+
+@utility btn-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  gap: 0;
+  border-radius: 9999px;
+
+  &.btn {
+    height: 2.5rem;
+    padding: 0;
+  }
+}
+
+@utility text-gradient-brand {
+  background-image: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* Reflejo diagonal que cruza al pasar el ratón (o al enfocar con teclado).
+   Al salir vuelve sin transición, así sólo se ve el barrido de entrada. */
+@utility shine {
+  position: relative;
+  overflow: hidden;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background-image: linear-gradient(115deg, transparent 30%, var(--shine) 50%, transparent 70%);
+    translate: -110% 0;
+  }
+
+  &:focus-visible::after {
+    translate: 110% 0;
+    transition: translate .9s var(--ease-in-out);
+  }
+
+  @media (hover: hover) {
+    &:hover::after {
+      translate: 110% 0;
+      transition: translate .9s var(--ease-in-out);
+    }
+  }
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 * { box-sizing: border-box; }
 
-html { color-scheme: light; }
+html {
+  color-scheme: light;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* Los anclajes (#comentarios) no deben quedar debajo de la cabecera fija. */
+  scroll-padding-top: calc(var(--header-h) + 24px);
+}
 html.dark { color-scheme: dark; }
+
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
+
+/* Sin el retardo del doble toque para zoom en móviles antiguos. */
+button, a, [role='button'] { touch-action: manipulation; }
+
+::selection {
+  background-color: color-mix(in srgb, var(--brand) 24%, transparent);
+}
 
 body {
   background-color: var(--bg);
+  /* Halos suaves en la parte alta. Sin background-attachment: fixed, que en
+     móvil obliga a repintar todo el fondo en cada frame de scroll. */
+  background-image:
+    radial-gradient(60rem 32rem at 50% 0, var(--bg-glow-1), transparent 70%),
+    radial-gradient(38rem 26rem at 100% 0, var(--bg-glow-2), transparent 70%);
+  background-repeat: no-repeat;
   color: var(--text);
   font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -100,12 +560,15 @@ body {
   overflow-x: hidden;
 }
 
-/* Scrollbars discretas (el original las ocultaba del todo) */
-@media (pointer: fine) {
-  * { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
-  *::-webkit-scrollbar { width: 8px; height: 8px; }
-  *::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
-  *::-webkit-scrollbar-track { background: transparent; }
+/* Scrollbars discretas (el original las ocultaba del todo). En la capa base
+   para que la utilidad no-scrollbar pueda anularlas. */
+@layer base {
+  @media (pointer: fine) {
+    * { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+    *::-webkit-scrollbar { width: 8px; height: 8px; }
+    *::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+    *::-webkit-scrollbar-track { background: transparent; }
+  }
 }
 
 :where(a, button, input, textarea, select):focus-visible {
@@ -202,11 +665,8 @@ body {
   animation: pokeball-flash .8s ease-out forwards;
 }
 
-@keyframes fade-up {
-  from { opacity: 0; transform: translateY(14px); }
-  to { opacity: 1; transform: none; }
-}
-.animate-fade-up { animation: fade-up .5s cubic-bezier(.22,.61,.36,1) both; }
+/* .animate-fade-up (usada en menús y en la portada) la genera ahora Tailwind
+   desde --animate-fade-up, con los keyframes ph-fade-up. */
 
 @keyframes spin-ring { to { transform: rotate(360deg); } }
 .loader-ring {
@@ -214,6 +674,18 @@ body {
   border-bottom-color: transparent;
   border-radius: 50%;
   animation: spin-ring 1s linear infinite;
+}
+
+/* ---------------------------------------------------------------
+   Piezas de src/components/ui que necesitan algo más que utilidades.
+   --------------------------------------------------------------- */
+
+/* Pila de toasts: sobre la barra inferior en móvil, sobre el pie en escritorio. */
+.ph-toaster {
+  bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom, 0px) + 12px);
+}
+@media (min-width: 48rem) {
+  .ph-toaster { bottom: 52px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,0 +1,682 @@
+/* Pantalla de acceso y registro (auth). */
+
+/* La animación de la bola (.pokeball-half, .pokeball-button, .pokeball-flash)
+   vive en globals.css; aquí va la maquetación de las mitades y del contenido.
+   En la capa de componentes: cualquier utilidad del JSX puede ajustarlas. */
+@layer components {
+  .auth-screen {
+    /* Diámetro del botón central: de él salen los huecos del texto que lo rodea. */
+    --ball: 7rem;
+    /* En oscuro el morado de marca no llega a 4.5:1 sobre la tarjeta como texto
+       pequeño; los enlaces usan una versión más clara. */
+    --auth-link: var(--brand);
+
+    position: relative;
+    min-height: 100dvh;
+    overflow-x: clip;
+  }
+
+  .dark .auth-screen {
+    --auth-link: color-mix(in oklab, var(--brand) 62%, white);
+  }
+
+  @media (min-width: 48rem) {
+    .auth-screen { --ball: 8rem; }
+  }
+
+  /* ------------------------------------------------------------------
+     Mitades de la pokéball
+     ------------------------------------------------------------------ */
+
+  /* Cada mitad mide justo 50dvh y lleva la mitad de la banda: juntas forman
+     una franja continua de 16 px centrada en la pantalla, sin rendija. */
+  .auth-top,
+  .auth-bottom {
+    position: fixed;
+    inset-inline: 0;
+    z-index: 30;
+    height: 50dvh;
+    overflow: hidden;
+  }
+
+  .auth-top {
+    top: 0;
+    border-bottom: 8px solid var(--band);
+    background-color: var(--brand);
+    color: var(--brand-fg);
+    box-shadow: var(--shadow);
+  }
+
+  .auth-top[data-expanded] { height: var(--header-h); }
+
+  /* Brillo de la mitad superior, el mismo que el de la cabecera de la app. */
+  .auth-top::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(110% 150% at 16% -60%, rgb(255 255 255 / .2), transparent 60%);
+  }
+
+  /* Con la bola cerrada, sombra junto a la banda: le da la curvatura de una
+     esfera. Abierta sobraría en una cabecera plana. */
+  .auth-top::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(80% 60% at 50% 115%, rgb(0 0 0 / .22), transparent 70%);
+    transition: opacity var(--dur-slow) ease;
+  }
+  .auth-top[data-expanded]::after { opacity: 0; }
+
+  .auth-bottom {
+    bottom: 0;
+    border-top: 8px solid var(--band);
+    background-color: var(--bg-elevated);
+  }
+
+  .auth-bottom::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(80% 50% at 50% -10%, rgb(0 0 0 / .07), transparent 70%);
+    transition: opacity var(--dur-slow) ease;
+  }
+
+  .auth-bottom[data-expanded] {
+    height: 2.5rem;
+    border-top-width: 2px;
+  }
+  .auth-bottom[data-expanded]::before { opacity: 0; }
+
+  /* Aviso legal: fijo al pie, con la bola abierta es todo lo que queda de la
+     mitad inferior. */
+  .auth-legal {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: calc(2.5rem - 2px);
+    padding-inline: 1rem;
+    font-size: 11px;
+    line-height: 1;
+    color: var(--muted);
+  }
+  .auth-legal > p { max-width: 100%; }
+
+  /* Barra de la cabecera: misma altura y márgenes que la de la app, así el
+     logo no salta al entrar. Se ancla arriba y no se mueve al abrir la bola. */
+  .auth-bar {
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    max-width: 1800px;
+    height: calc(var(--header-h) - 8px);
+    margin-inline: auto;
+    padding-inline: 1rem;
+  }
+
+  @media (min-width: 48rem) {
+    .auth-bar { padding-inline: 1.75rem; }
+  }
+
+  /* ------------------------------------------------------------------
+     Bola cerrada: eslogan arriba, bienvenida abajo
+     ------------------------------------------------------------------ */
+
+  /* Anclado al borde inferior de la mitad: al abrirse, sube con la banda y la
+     cabecera se lo "traga". */
+  .auth-hero {
+    position: absolute;
+    inset-inline: 0;
+    top: calc(var(--header-h) - 8px);
+    bottom: calc(var(--ball) / 2 + 1.25rem);
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding-inline: 1.25rem;
+    text-align: center;
+    animation: ph-fade-up .6s var(--ease-out-expo) backwards;
+    transition: opacity .25s ease;
+  }
+
+  .auth-eyebrow {
+    max-width: 100%;
+    margin-bottom: .875rem;
+    padding: .375rem .875rem;
+    border-radius: 9999px;
+    background-color: rgb(0 0 0 / .16);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    line-height: 1.2;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  @media (min-width: 25rem) {
+    .auth-eyebrow { font-size: 11px; letter-spacing: .14em; }
+  }
+
+  .auth-hero-title {
+    max-width: 16ch;
+    font-size: clamp(1.875rem, 2.8vw + 1rem, 3.5rem);
+    font-weight: 800;
+    line-height: 1.08;
+    letter-spacing: -.02em;
+    text-wrap: balance;
+    text-shadow: 0 2px 0 rgb(0 0 0 / .12);
+  }
+
+  /* Pegatina blanca con el color de marca, como el "Hub" del logo. */
+  .auth-hero-accent {
+    display: inline-block;
+    margin-top: .12em;
+    padding: .02em .28em .08em;
+    border-radius: .22em;
+    background-color: var(--brand-fg);
+    color: var(--brand);
+    text-shadow: none;
+    box-shadow: 0 .08em 0 rgb(0 0 0 / .25);
+    rotate: -2deg;
+  }
+
+  .auth-welcome {
+    position: absolute;
+    inset-inline: 0;
+    top: calc(var(--ball) / 2 + .75rem);
+    bottom: 2.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-inline: 1.25rem;
+    text-align: center;
+    animation: ph-fade-up .6s var(--ease-out-expo) .08s backwards;
+    transition: opacity .25s ease;
+  }
+
+  .auth-screen[data-state='opening'] :is(.auth-hero, .auth-welcome) { opacity: 0; }
+
+  .auth-hint {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .125rem;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+
+  .auth-hint-arrow {
+    color: var(--brand);
+    animation: ph-float 1.8s ease-in-out infinite;
+  }
+
+  /* El resto de la bienvenida se centra en el hueco que queda. */
+  .auth-welcome-title {
+    margin-top: auto;
+    font-size: clamp(1.25rem, 1.2vw + 1rem, 1.75rem);
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -.01em;
+  }
+
+  .auth-welcome-text {
+    max-width: 29rem;
+    margin-top: .5rem;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--muted);
+    text-wrap: pretty;
+  }
+
+  .auth-welcome-links {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    margin-top: 1rem;
+    margin-bottom: auto;
+    font-size: 14px;
+  }
+
+  @media (min-width: 48rem) {
+    .auth-eyebrow { font-size: 12px; }
+    .auth-welcome-text { font-size: 15px; }
+  }
+
+  /* Pantallas bajas (móvil apaisado, portátiles pequeños): se recorta de
+     menos a más importante para que nada choque con la bola. */
+  @media (max-height: 720px) {
+    .auth-welcome-text { display: none; }
+  }
+  @media (max-height: 600px) {
+    .auth-eyebrow { display: none; }
+    .auth-hero-title { font-size: clamp(1.5rem, 2.4vw + 1rem, 2.5rem); }
+  }
+  @media (max-height: 480px) {
+    .auth-hero,
+    .auth-mark-m,
+    .auth-welcome-title { display: none; }
+    .auth-welcome-links { margin-top: auto; }
+  }
+
+  /* ------------------------------------------------------------------
+     Marcas de Master Ball (sólo tienen color en tema oscuro)
+     ------------------------------------------------------------------ */
+
+  .auth-marks {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    transition: opacity .5s ease;
+  }
+  .auth-top[data-expanded] .auth-marks { opacity: 0; }
+
+  /* Las dos marcas rosas, a los lados del botón junto a la banda. */
+  .auth-mark-dot {
+    position: absolute;
+    bottom: 1.25rem;
+    width: clamp(2.25rem, 5vw, 4.25rem);
+    aspect-ratio: 1;
+    border-radius: 9999px;
+    background-color: var(--ball-mark);
+  }
+  .auth-mark-dot:first-child { left: clamp(1rem, 14%, 14rem); }
+  .auth-mark-dot:last-child { right: clamp(1rem, 14%, 14rem); }
+
+  /* La "M" como marca de agua detrás del eslogan: presente sin restarle lectura. */
+  .auth-mark-m {
+    position: absolute;
+    left: 50%;
+    bottom: calc(var(--ball) / 2 + 1.75rem);
+    width: clamp(9rem, 30vw, 24rem);
+    height: auto;
+    overflow: visible;
+    opacity: .1;
+    translate: -50% 0;
+  }
+
+  /* ------------------------------------------------------------------
+     Botón central
+     ------------------------------------------------------------------ */
+
+  .auth-ball {
+    position: fixed;
+    left: 50%;
+    top: 50dvh;
+    z-index: 40;
+    width: var(--ball);
+    height: var(--ball);
+    border-radius: 9999px;
+    cursor: pointer;
+  }
+
+  /* El anillo de foco global es del color de marca y se perdería sobre la mitad
+     roja: debajo va un aro claro y otro oscuro que se ven sobre las dos. */
+  .auth-ball:focus-visible {
+    box-shadow: 0 0 0 4px var(--ball-core), 0 0 0 7px var(--band);
+  }
+
+  /* Halo que "respira" mientras la bola espera a que alguien la toque. */
+  .auth-ball-halo {
+    position: fixed;
+    left: 50%;
+    top: 50dvh;
+    z-index: 35;
+    width: calc(var(--ball) * 1.7);
+    aspect-ratio: 1;
+    border-radius: 9999px;
+    background: radial-gradient(circle, var(--ball-glow) 30%, transparent 68%);
+    pointer-events: none;
+    translate: -50% -50%;
+    animation: auth-halo 2.6s ease-in-out infinite;
+    transition: opacity .3s ease;
+  }
+  .auth-ball-halo:not([data-state='closed']) {
+    opacity: 0;
+    animation: none;
+  }
+
+  /* ------------------------------------------------------------------
+     Bola abierta: tarjeta con el formulario
+     ------------------------------------------------------------------ */
+
+  .auth-main {
+    position: relative;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100dvh;
+    padding: calc(var(--header-h) + 1.5rem) 1rem calc(2.5rem + 1.5rem);
+  }
+
+  /* Resplandor de la bola recién abierta, detrás de la tarjeta. */
+  .auth-glow {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    z-index: -1;
+    width: min(60rem, 150vw);
+    aspect-ratio: 1;
+    background: radial-gradient(circle, var(--ball-glow), transparent 60%);
+    opacity: .45;
+    pointer-events: none;
+    translate: -50% -50%;
+    animation: ph-fade-in 1.2s ease backwards;
+  }
+
+  /* bg-elevated y no surface: sobre el blanco los tonos de estado y el texto
+     atenuado superan 4.5:1, y la tarjeta destaca más sobre el fondo rosado. */
+  .auth-card {
+    position: relative;
+    width: 100%;
+    max-width: 28rem;
+    padding: 1.5rem 1.25rem;
+    border: 1px solid var(--border);
+    border-radius: 1.25rem;
+    background-color: var(--bg-elevated);
+    box-shadow: var(--shadow-lg);
+    animation: ph-fade-up .55s var(--ease-out-expo) .06s backwards;
+  }
+  .auth-card[data-delayed] { animation-delay: .32s; }
+
+  @media (min-width: 40rem) {
+    .auth-card { padding: 2rem; }
+  }
+
+  .auth-close {
+    display: flex;
+    align-items: center;
+    gap: .25rem;
+    margin: -.5rem auto 1rem;
+    padding: .25rem .75rem;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    transition: background-color var(--dur) var(--ease-out-expo), color var(--dur-fast) ease;
+  }
+
+  .auth-back {
+    display: inline-flex;
+    align-items: center;
+    gap: .375rem;
+    margin: -.25rem 0 1rem -.5rem;
+    padding: .25rem .625rem;
+    border-radius: 9999px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    transition: background-color var(--dur) var(--ease-out-expo), color var(--dur-fast) ease;
+  }
+
+  @media (hover: hover) {
+    :is(.auth-close, .auth-back):hover {
+      background-color: var(--surface);
+      color: var(--text);
+    }
+  }
+
+  /* Selector Entrar / Crear cuenta: carril hundido y píldora en relieve. */
+  .auth-switch {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .25rem;
+    margin-bottom: 1.5rem;
+    padding: .25rem;
+    border-radius: 9999px;
+    background-color: var(--bg);
+    box-shadow: inset 0 2px 4px rgb(0 0 0 / .14);
+  }
+
+  .auth-switch-option {
+    position: relative;
+    height: 2.5rem;
+    padding-inline: .5rem;
+    border-radius: 9999px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    transition: color var(--dur) ease;
+  }
+
+  @media (hover: hover) {
+    .auth-switch-option:not(.is-active):hover { color: var(--text); }
+  }
+
+  .auth-switch-option.is-active { color: var(--brand-fg); }
+
+  .auth-switch-pill {
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    background-color: var(--brand);
+    box-shadow: var(--shadow);
+  }
+
+  .auth-tips {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    border-radius: 1rem;
+    background-color: var(--bg);
+    box-shadow: inset 0 2px 4px rgb(0 0 0 / .1);
+    font-size: 13px;
+    line-height: 1.45;
+    text-align: left;
+    color: var(--muted);
+  }
+
+  .auth-title {
+    font-size: 1.625rem;
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -.015em;
+    text-wrap: balance;
+  }
+  /* Sólo recibe el foco por programa (al abrir la bola); no es un control. */
+  .auth-title:focus { outline: none; }
+
+  @media (min-width: 40rem) {
+    .auth-title { font-size: 1.875rem; }
+  }
+
+  .auth-badge {
+    display: grid;
+    place-items: center;
+    width: 3.5rem;
+    height: 3.5rem;
+    margin: 0 auto 1rem;
+    border-radius: 1.25rem;
+    background-color: var(--brand-soft);
+    color: var(--brand);
+    rotate: -4deg;
+  }
+  .dark .auth-badge { color: var(--auth-link); }
+  .auth-badge[data-tone='success'] { background-color: var(--success-soft); color: var(--success); }
+  .auth-badge[data-tone='warning'] { background-color: var(--warning-soft); color: var(--warning); }
+
+  .auth-link {
+    border-radius: .25rem;
+    font-weight: 600;
+    color: var(--auth-link);
+    text-decoration-line: underline;
+    text-decoration-color: transparent;
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 3px;
+    transition: text-decoration-color var(--dur) ease;
+  }
+  @media (hover: hover) {
+    .auth-link:hover { text-decoration-color: currentColor; }
+  }
+
+  /* ------------------------------------------------------------------
+     Campos
+     ------------------------------------------------------------------ */
+
+  .auth-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  /* Hundido sobre la tarjeta (color de fondo de la app) y en relieve al
+     enfocarlo. 16 px en móvil: con menos, iOS hace zoom al tocar el campo. */
+  .auth-input {
+    display: block;
+    width: 100%;
+    height: 3rem;
+    padding-inline: 1.125rem;
+    border: 2px solid var(--border);
+    border-radius: 9999px;
+    background-color: var(--bg);
+    color: var(--text);
+    font-size: 16px;
+    transition:
+      border-color var(--dur) var(--ease-out-expo),
+      background-color var(--dur) var(--ease-out-expo);
+  }
+
+  @media (min-width: 40rem) {
+    .auth-input { font-size: 15px; }
+  }
+
+  .auth-input::placeholder { color: var(--muted); opacity: .7; }
+
+  @media (hover: hover) {
+    .auth-input:hover { border-color: color-mix(in srgb, var(--brand) 35%, var(--border)); }
+  }
+
+  .auth-input:focus {
+    border-color: var(--brand);
+    background-color: var(--surface-2);
+  }
+
+  .auth-input[aria-invalid='true'] {
+    border-color: var(--danger);
+    background-color: color-mix(in srgb, var(--danger) 5%, var(--bg));
+  }
+
+  /* El autocompletado de Chrome pinta su propio fondo (azul claro, ilegible
+     en oscuro): se tapa con una sombra interior del color del campo. */
+  .auth-input:-webkit-autofill {
+    -webkit-text-fill-color: var(--text);
+    box-shadow: inset 0 0 0 100px var(--surface-2);
+    caret-color: var(--text);
+  }
+
+  .auth-input-has-icon { padding-left: 2.75rem; }
+  .auth-input-has-trailing { padding-right: 3rem; }
+
+  .auth-input-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    color: var(--muted);
+    pointer-events: none;
+    translate: 0 -50%;
+    transition: color var(--dur) ease;
+  }
+  .auth-field:focus-within .auth-input-icon { color: var(--brand); }
+  .dark .auth-field:focus-within .auth-input-icon { color: var(--auth-link); }
+  .auth-field:has([aria-invalid='true']) .auth-input-icon { color: var(--danger); }
+
+  .auth-input-trailing {
+    position: absolute;
+    right: .375rem;
+    top: 50%;
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 9999px;
+    color: var(--muted);
+    translate: 0 -50%;
+    transition: background-color var(--dur) var(--ease-out-expo), color var(--dur-fast) ease;
+  }
+  @media (hover: hover) {
+    button.auth-input-trailing:hover {
+      background-color: var(--surface);
+      color: var(--text);
+    }
+  }
+
+  .auth-field-error {
+    display: flex;
+    gap: .375rem;
+    margin-top: .375rem;
+    padding-inline: .25rem;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--danger);
+    animation: auth-error-in .35s var(--ease-out-expo) backwards;
+  }
+
+  .auth-field-hint {
+    margin-top: .375rem;
+    padding-inline: .25rem;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--muted);
+  }
+
+  /* Medidor de fortaleza: cuatro segmentos que se tiñen según la nota. */
+  .auth-strength { --tone: var(--danger); }
+  .auth-strength[data-score='2'] { --tone: var(--warning); }
+  .auth-strength[data-score='3'],
+  .auth-strength[data-score='4'] { --tone: var(--success); }
+
+  .auth-strength-bar {
+    height: 5px;
+    border-radius: 9999px;
+    background-color: color-mix(in srgb, var(--text) 12%, transparent);
+    transition: background-color var(--dur-slow) var(--ease-out-expo);
+  }
+  .auth-strength-bar[data-on] { background-color: var(--tone); }
+  .auth-strength-label { color: var(--tone); }
+
+  /* Avisos del formulario: texto con el color de tinta (el rojo o el verde
+     sobre su versión suave no llega a 4.5:1) y el tono en icono y borde. */
+  .auth-alert {
+    --tone: var(--danger);
+    --tone-soft: var(--danger-soft);
+    display: flex;
+    gap: .625rem;
+    padding: .75rem .875rem;
+    border: 1px solid color-mix(in srgb, var(--tone) 35%, transparent);
+    border-radius: 1rem;
+    background-color: var(--tone-soft);
+    color: var(--text);
+    font-size: 13.5px;
+    line-height: 1.45;
+  }
+  .auth-alert > svg { color: var(--tone); }
+  .auth-alert[data-tone='success'] { --tone: var(--success); --tone-soft: var(--success-soft); }
+  .auth-alert[data-tone='info'] { --tone: var(--warning); --tone-soft: var(--warning-soft); }
+}
+
+@keyframes auth-halo {
+  0%, 100% { transform: scale(.82); opacity: .5; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+
+@keyframes auth-error-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}

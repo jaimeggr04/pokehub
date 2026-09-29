@@ -1,0 +1,790 @@
+/* Página de detalle de un equipo (team): cabecera con la alineación,
+   navegación por secciones, análisis de tipos, exportación a Showdown,
+   comentarios y diálogo de liberar. */
+
+/* En la capa components: así las utilidades de Tailwind que se pasen en cada
+   sitio (w-*, p-*, rounded-*…) siguen ganando a estos estilos base. */
+@layer components {
+  /* ---------- Cabecera ---------- */
+
+  /* El extremo claro del degradado (naranja en claro, lila en oscuro) queda
+     justo detrás del nombre y el autor: un velo del tono fuerte de marca lo
+     oscurece lo justo para que el texto blanco cumpla contraste sin enturbiar
+     el resto de la banda. */
+  .team-hero-band {
+    --team-floor-x: 50%;
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    background-image:
+      linear-gradient(115deg, color-mix(in srgb, var(--brand-strong) 70%, transparent), transparent 65%),
+      var(--brand-gradient);
+    color: #fff;
+  }
+
+  /* En escritorio la alineación va a la derecha del texto: la luz la sigue. */
+  @media (min-width: 64rem) {
+    .team-hero-band {
+      --team-floor-x: 70%;
+    }
+  }
+
+  .team-hero-text {
+    text-shadow: 0 1px 2px rgb(0 0 0 / 0.22);
+  }
+
+  /* Brillo de la esquina (el mismo gesto que la cabecera de la app) y un foco
+     de luz en el suelo, donde se plantan los Pokémon. */
+  .team-hero-band::before,
+  .team-hero-band::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  .team-hero-band::before {
+    background: radial-gradient(90% 130% at 10% -45%, rgb(255 255 255 / 0.3), transparent 60%);
+  }
+
+  .team-hero-band::after {
+    background: radial-gradient(55% 55% at var(--team-floor-x) 108%, rgb(255 255 255 / 0.32), transparent 72%);
+  }
+
+  .team-hero-ball {
+    position: absolute;
+    z-index: -1;
+    top: -3.25rem;
+    right: -3rem;
+    width: 14rem;
+    height: 14rem;
+    color: rgb(255 255 255 / 0.15);
+    rotate: -16deg;
+    animation: team-ball-settle 1.2s var(--ease-out-expo) backwards;
+  }
+
+  @media (min-width: 48rem) {
+    .team-hero-ball {
+      top: -5rem;
+      right: -2.5rem;
+      width: 22rem;
+      height: 22rem;
+    }
+  }
+
+  /* Chapas sobre el degradado: cristal oscuro, legible en los dos temas
+     (el extremo lila del degradado oscuro no aguanta texto blanco a pelo). */
+  .team-hero-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    height: 1.75rem;
+    max-width: 100%;
+    padding-inline: 0.75rem;
+    border-radius: 9999px;
+    background-color: rgb(0 0 0 / 0.26);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.18);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
+
+  /* ---------- Alineación ---------- */
+
+  /* Cada hueco reparte el ancho a partes iguales y el arte se sale un 18 % por
+     cada lado: así se solapan un poco con los vecinos sin cálculos por número
+     de Pokémon, y con seis caben en 360 px. */
+  .team-lineup-item {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 5.75rem;
+    animation: team-lineup-in 0.8s var(--ease-spring) backwards;
+    animation-delay: calc(var(--i, 0) * 85ms + 150ms);
+  }
+
+  @media (min-width: 48rem) {
+    .team-lineup-item {
+      max-width: 8.5rem;
+    }
+  }
+
+  .team-lineup-item:hover,
+  .team-lineup-item:focus-within {
+    z-index: 2;
+  }
+
+  .team-lineup-link {
+    position: relative;
+    display: block;
+    margin-inline: -18%;
+    border-radius: 1.5rem;
+    transition:
+      translate 0.5s var(--ease-spring),
+      scale 0.5s var(--ease-spring);
+  }
+
+  @media (hover: hover) {
+    .team-lineup-link:hover {
+      translate: 0 -6px;
+      scale: 1.07;
+    }
+  }
+
+  .team-lineup-link:focus-visible {
+    translate: 0 -6px;
+    scale: 1.07;
+  }
+
+  .team-lineup-link:active {
+    scale: 0.95;
+    transition-duration: var(--dur-fast);
+  }
+
+  /* Desfase negativo: cada Pokémon flota a su ritmo desde el primer frame. */
+  .team-lineup-float {
+    display: block;
+    animation: ph-float 3.6s ease-in-out infinite;
+    animation-delay: calc(var(--i, 0) * -0.6s);
+  }
+
+  .team-lineup-shadow {
+    position: absolute;
+    left: 50%;
+    bottom: 5%;
+    width: 50%;
+    height: 8%;
+    translate: -50% 0;
+    border-radius: 50%;
+    background-color: rgb(0 0 0 / 0.3);
+    filter: blur(3px);
+    animation: ph-float-shadow 3.6s ease-in-out infinite;
+    animation-delay: calc(var(--i, 0) * -0.6s);
+  }
+
+  /* Destello de "¡Adelante!" al salir de la bola. Invisible fuera de la animación. */
+  .team-lineup-flash {
+    position: absolute;
+    inset: 14%;
+    border-radius: 50%;
+    pointer-events: none;
+    opacity: 0;
+    background: radial-gradient(circle, #fff 0%, rgb(255 255 255 / 0.55) 38%, transparent 70%);
+    animation: team-lineup-flash 0.8s var(--ease-out-expo);
+    animation-delay: calc(var(--i, 0) * 85ms + 110ms);
+  }
+
+  .team-lineup-name {
+    position: absolute;
+    left: 50%;
+    bottom: 2%;
+    max-width: 120%;
+    overflow: hidden;
+    padding: 0.25rem 0.6rem;
+    border-radius: 9999px;
+    background-color: rgb(0 0 0 / 0.6);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    translate: -50% 4px;
+    transition:
+      opacity var(--dur-fast) ease,
+      translate var(--dur) var(--ease-out-expo);
+  }
+
+  @media (hover: hover) {
+    .team-lineup-link:hover .team-lineup-name {
+      opacity: 1;
+      translate: -50% 0;
+    }
+  }
+
+  .team-lineup-link:focus-visible .team-lineup-name {
+    opacity: 1;
+    translate: -50% 0;
+  }
+
+  .team-lineup-shiny {
+    position: absolute;
+    top: 10%;
+    right: 16%;
+    color: #ffd23f;
+    filter: drop-shadow(0 0 4px rgb(255 255 255 / 0.9));
+  }
+
+  /* ---------- Secciones y anclas ---------- */
+
+  /* html ya reserva la cabecera con scroll-padding; esto suma la barra de secciones. */
+  .team-section,
+  .team-anchor {
+    scroll-margin-top: 3rem;
+  }
+
+  .team-anchor {
+    position: relative;
+  }
+
+  /* Al saltar a un Pokémon desde la alineación, su ficha se ilumina un momento.
+     En un pseudo-elemento: tocar la animación de la tarjeta reiniciaría su entrada. */
+  .team-anchor:target::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: calc(var(--radius-card) + 4px);
+    box-shadow:
+      0 0 0 3px var(--brand),
+      0 0 28px -4px var(--brand);
+    pointer-events: none;
+    opacity: 0;
+    animation: team-target-ring 1.8s var(--ease-out-expo);
+  }
+
+  /* ---------- Navegación por secciones ---------- */
+
+  .team-nav {
+    top: calc(var(--header-h) + 8px);
+  }
+
+  .team-nav-surface,
+  .team-nav-group {
+    transition: box-shadow var(--dur-slow) var(--ease-out-expo);
+  }
+
+  @media (width < 48rem) {
+    .team-nav-surface {
+      box-shadow: var(--shadow);
+    }
+
+    .team-nav[data-stuck] .team-nav-surface {
+      box-shadow: var(--shadow-lg);
+    }
+
+    /* Difuminado en el borde por el que queda contenido al deslizar. */
+    .team-nav-track[data-more-start] {
+      mask-image: linear-gradient(90deg, transparent, #000 2rem);
+    }
+
+    .team-nav-track[data-more-end] {
+      mask-image: linear-gradient(90deg, #000 calc(100% - 2rem), transparent);
+    }
+
+    .team-nav-track[data-more-start][data-more-end] {
+      mask-image: linear-gradient(90deg, transparent, #000 2rem, #000 calc(100% - 2rem), transparent);
+    }
+  }
+
+  @media (width >= 48rem) {
+    .team-nav-group {
+      box-shadow: var(--shadow);
+    }
+
+    .team-nav[data-stuck] .team-nav-group {
+      box-shadow: var(--shadow-lg);
+    }
+  }
+
+  /* El hueco central es para la pokéball de la cabecera: cuando la barra se
+     pega, la bola real ocupa su sitio y la miniatura se aparta. */
+  .team-nav-hub {
+    transition:
+      opacity var(--dur) ease,
+      scale var(--dur-slow) var(--ease-spring),
+      rotate var(--dur-slow) var(--ease-spring);
+  }
+
+  .team-nav[data-stuck] .team-nav-hub {
+    opacity: 0;
+    scale: 0.4;
+    rotate: 90deg;
+  }
+
+  /* ---------- Análisis: tabla defensiva ---------- */
+
+  .team-cell {
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 1.875rem;
+    margin-inline: auto;
+    border-radius: 0.5rem;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .team-cell[data-m='1'] {
+    color: color-mix(in srgb, var(--muted) 45%, transparent);
+    font-weight: 600;
+  }
+
+  .team-cell[data-m='2'] {
+    background-color: var(--danger-soft);
+    color: var(--danger);
+  }
+
+  /* Los extremos van sólidos y oscurecidos para que el blanco tenga contraste
+     también con los tonos claros del tema oscuro. */
+  .team-cell[data-m='4'] {
+    background-color: color-mix(in oklab, var(--danger) 84%, black);
+    color: #fff;
+    box-shadow: 0 4px 10px -4px color-mix(in srgb, var(--danger) 80%, transparent);
+  }
+
+  .team-cell[data-m='0.5'] {
+    background-color: var(--success-soft);
+    color: var(--success);
+  }
+
+  .team-cell[data-m='0.25'] {
+    background-color: color-mix(in oklab, var(--success) 82%, black);
+    color: #fff;
+  }
+
+  /* Inmune: el negativo del tema, distinto de cualquier verde o rojo. */
+  .team-cell[data-m='0'] {
+    background-color: var(--text);
+    color: var(--bg-elevated);
+  }
+
+  .dark .team-cell[data-m='4'] {
+    background-color: color-mix(in oklab, var(--danger) 60%, black);
+  }
+
+  .dark .team-cell[data-m='0.25'] {
+    background-color: color-mix(in oklab, var(--success) 50%, black);
+  }
+
+  .team-matrix th,
+  .team-matrix td {
+    background-color: var(--surface);
+  }
+
+  /* Tintes con background-image: la columna fija conserva su fondo opaco
+     debajo y no deja ver las celdas que pasan por detrás al deslizar. */
+  .team-matrix tr[data-critical] > * {
+    background-image: linear-gradient(var(--danger-soft), var(--danger-soft));
+  }
+
+  .team-matrix tr[data-critical] > th {
+    box-shadow: inset 3px 0 0 var(--danger);
+  }
+
+  .team-matrix tbody tr:hover > *,
+  .team-matrix [data-col-hover] {
+    background-image: linear-gradient(
+      color-mix(in srgb, var(--text) 6%, transparent),
+      color-mix(in srgb, var(--text) 6%, transparent)
+    );
+  }
+
+  .team-matrix tbody tr[data-critical]:hover > * {
+    background-image:
+      linear-gradient(color-mix(in srgb, var(--text) 5%, transparent), color-mix(in srgb, var(--text) 5%, transparent)),
+      linear-gradient(var(--danger-soft), var(--danger-soft));
+  }
+
+  /* Sombra en el borde de la columna fija cuando hay filas deslizadas debajo. */
+  .team-matrix-sticky::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: -10px;
+    bottom: 0;
+    width: 10px;
+    pointer-events: none;
+    background: linear-gradient(90deg, rgb(0 0 0 / 0.14), transparent);
+    opacity: 0;
+    transition: opacity var(--dur) ease;
+  }
+
+  .team-matrix-scroll[data-scrolled] .team-matrix-sticky::after {
+    opacity: 1;
+  }
+
+  /* Las celdas con algo que decir entran por filas en cuanto la tabla se ve. */
+  .team-matrix:not([data-inview]) .team-cell:not([data-m='1']) {
+    opacity: 0;
+  }
+
+  .team-matrix[data-inview] .team-cell:not([data-m='1']) {
+    animation: team-cell-in 0.5s var(--ease-spring) backwards;
+    animation-delay: calc(var(--r, 0) * 22ms + var(--c, 0) * 35ms);
+  }
+
+  /* ---------- Análisis: barras ---------- */
+
+  .team-bar {
+    transform-origin: left center;
+    transform: scaleX(0);
+    transition: transform 1s var(--ease-out-expo);
+    transition-delay: calc(var(--i, 0) * 70ms + 120ms);
+  }
+
+  [data-inview] .team-bar {
+    transform: none;
+  }
+
+  /* ---------- Exportación a Showdown ---------- */
+
+  /* Siempre oscuro, como un editor: el texto de Showdown se lee de un vistazo. */
+  .team-code-body {
+    position: relative;
+    overflow: hidden;
+    background-color: var(--band);
+    color: #ebe7f2;
+  }
+
+  .team-code-block {
+    border-radius: 1rem;
+    background-color: rgb(255 255 255 / 0.04);
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.07);
+  }
+
+  .team-code-pre {
+    font-size: 12.5px;
+    line-height: 1.75;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    tab-size: 2;
+  }
+
+  .team-code-name {
+    color: #fff;
+    font-weight: 700;
+  }
+
+  .team-code-dim {
+    color: rgb(255 255 255 / 0.5);
+  }
+
+  .team-code-item {
+    color: #ffd479;
+  }
+
+  .team-code-num {
+    color: #7dd3fc;
+  }
+
+  .team-code-nature {
+    color: #f0abfc;
+  }
+
+  .team-code-dash {
+    color: color-mix(in srgb, var(--brand) 55%, #fff);
+  }
+
+  .team-code-fade {
+    background-image: linear-gradient(180deg, transparent, var(--band) 85%);
+  }
+
+  .team-code-copy {
+    color: rgb(255 255 255 / 0.62);
+    transition:
+      background-color var(--dur-fast) ease,
+      color var(--dur-fast) ease,
+      scale var(--dur) var(--ease-out-expo);
+  }
+
+  @media (hover: hover) {
+    .team-code-copy:hover {
+      background-color: rgb(255 255 255 / 0.1);
+      color: #fff;
+    }
+  }
+
+  .team-code-copy:active {
+    scale: 0.92;
+  }
+
+  .team-code-copy[data-copied] {
+    color: #4ade80;
+  }
+
+  /* ---------- Botón de copiar ---------- */
+
+  .team-copy-icons {
+    position: relative;
+    display: grid;
+    place-items: center;
+  }
+
+  .team-copy-icons > svg {
+    grid-area: 1 / 1;
+    transition:
+      opacity 0.2s ease,
+      scale 0.45s var(--ease-spring),
+      rotate 0.45s var(--ease-spring);
+  }
+
+  .team-copy-icons > svg:last-of-type {
+    opacity: 0;
+    scale: 0.3;
+    rotate: -60deg;
+  }
+
+  [data-copied] > .team-copy-icons > svg:first-of-type {
+    opacity: 0;
+    scale: 0.3;
+    rotate: 60deg;
+  }
+
+  [data-copied] > .team-copy-icons > svg:last-of-type {
+    opacity: 1;
+    scale: 1;
+    rotate: 0deg;
+  }
+
+  [data-copied] > .team-copy-icons {
+    animation: ph-pop 0.45s var(--ease-spring);
+  }
+
+  /* Onda que sale del icono al copiar. Sólo existe mientras dura el "copiado". */
+  [data-copied] > .team-copy-icons::after {
+    content: '';
+    position: absolute;
+    inset: -5px;
+    border-radius: 9999px;
+    border: 2px solid currentColor;
+    pointer-events: none;
+    opacity: 0;
+    animation: team-copy-ring 0.65s var(--ease-out-expo);
+  }
+
+  /* Las dos etiquetas ocupan la misma celda: el botón mide lo que la más
+     larga y no empuja a sus vecinos al cambiar. */
+  .team-copy-labels {
+    display: grid;
+    justify-items: center;
+  }
+
+  .team-copy-labels > * {
+    grid-area: 1 / 1;
+    transition:
+      opacity 0.2s ease,
+      translate 0.35s var(--ease-out-expo);
+  }
+
+  .team-copy-labels > :last-child {
+    opacity: 0;
+    translate: 0 0.5em;
+  }
+
+  [data-copied] > .team-copy-labels > :first-child {
+    opacity: 0;
+    translate: 0 -0.5em;
+  }
+
+  [data-copied] > .team-copy-labels > :last-child {
+    opacity: 1;
+    translate: 0 0;
+  }
+
+  /* ---------- Comentarios ---------- */
+
+  .team-composer-box {
+    border: 1px solid var(--border);
+    border-radius: 1.25rem;
+    background-color: var(--surface-2);
+    transition:
+      border-color var(--dur) ease,
+      box-shadow var(--dur) var(--ease-out-expo);
+  }
+
+  .team-composer-box:focus-within {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 4px var(--brand-soft);
+  }
+
+  .team-counter-ring circle {
+    transition:
+      stroke-dashoffset 0.25s var(--ease-out-expo),
+      stroke 0.25s ease;
+  }
+
+  /* ---------- Diálogo de liberar ---------- */
+
+  .team-danger-solid {
+    background-color: color-mix(in oklab, var(--danger) 84%, black);
+    color: #fff;
+    box-shadow: var(--shadow);
+  }
+
+  .dark .team-danger-solid {
+    background-color: color-mix(in oklab, var(--danger) 62%, black);
+  }
+
+  @media (hover: hover) {
+    .team-danger-solid:hover:not(:disabled) {
+      background-color: color-mix(in oklab, var(--danger) 70%, black);
+      box-shadow:
+        var(--shadow),
+        0 8px 22px -6px color-mix(in srgb, var(--danger) 60%, transparent);
+    }
+
+    .dark .team-danger-solid:hover:not(:disabled) {
+      background-color: color-mix(in oklab, var(--danger) 52%, black);
+    }
+  }
+
+  .team-release-sprite {
+    animation: ph-bounce-in 0.6s var(--ease-out-expo) backwards;
+    animation-delay: calc(var(--i, 0) * 60ms + 140ms);
+  }
+
+  .team-release-sprite > img {
+    animation: ph-float 3.6s ease-in-out infinite;
+    animation-delay: calc(var(--i, 0) * -0.5s);
+  }
+
+  /* Al liberar, cada uno sale hacia su lado y se pierde entre la hierba. */
+  [data-releasing] .team-release-sprite {
+    animation: team-release-fly 0.9s var(--ease-in-out) forwards;
+    animation-delay: calc(var(--i, 0) * 90ms);
+  }
+
+  /* Se sacude al abrir el diálogo y tiembla mientras los suelta. */
+  .team-release-ball {
+    animation: ph-wiggle 0.6s ease-in-out 0.2s;
+  }
+
+  [data-releasing] .team-release-ball {
+    animation: team-release-shake 0.5s ease-in-out infinite;
+  }
+}
+
+/* Fuera de las capas: el anillo de foco global también vive fuera y, dentro
+   de una capa, estas excepciones perderían contra él. */
+
+/* Sobre el degradado de marca el anillo de marca no se vería. */
+.team-hero-band :focus-visible {
+  outline-color: #fff;
+}
+
+.team-lineup-link:focus-visible {
+  outline-color: #fff;
+  outline-offset: 0;
+}
+
+.team-code-copy:focus-visible,
+.team-code-body :focus-visible {
+  outline-color: #fff;
+}
+
+/* El recuadro entero del compositor hace de indicador de foco. */
+.team-composer-input:focus-visible {
+  outline: none;
+}
+
+@keyframes team-ball-settle {
+  from {
+    opacity: 0;
+    transform: rotate(-70deg) scale(0.8);
+  }
+}
+
+@keyframes team-lineup-in {
+  0% {
+    opacity: 0;
+    transform: translateY(22px) scale(0.35);
+  }
+  55% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes team-lineup-flash {
+  0% {
+    opacity: 0.95;
+    transform: scale(0.2);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+@keyframes team-target-ring {
+  0% {
+    opacity: 0;
+    transform: scale(1.03);
+  }
+  15% {
+    opacity: 1;
+    transform: none;
+  }
+  65% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes team-cell-in {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+
+@keyframes team-copy-ring {
+  from {
+    opacity: 0.7;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.8);
+  }
+}
+
+@keyframes team-release-shake {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  25% {
+    transform: rotate(-9deg);
+  }
+  75% {
+    transform: rotate(9deg);
+  }
+}
+
+@keyframes team-release-fly {
+  to {
+    opacity: 0;
+    transform: translate(var(--dx, 0), -84px) scale(0.5) rotate(var(--rot, 0deg));
+  }
+}
+
+/* La regla global deja las animaciones en 0,01 ms pero no toca los retrasos:
+   sin esto, con "reducir movimiento" los elementos escalonados esperarían
+   ocultos su turno para aparecer de golpe. */
+@media (prefers-reduced-motion: reduce) {
+  .team-lineup-item,
+  .team-matrix[data-inview] .team-cell,
+  .team-release-sprite,
+  .team-bar {
+    animation-delay: 0s !important;
+    transition-delay: 0s !important;
+  }
+
+  .team-lineup-flash {
+    display: none;
+  }
+}

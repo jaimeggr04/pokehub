@@ -1,21 +1,37 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { headers } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { isAuthRetryableFetchError } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
+import { RECOVERY_COOKIE, RESET_PATH } from '@/app/(auth)/recovery'
+
+export type AuthField = 'identifier' | 'password' | 'username' | 'email' | 'repeat'
 
 export interface AuthState {
   error?: string
   notice?: string
   /**
+   * Errores que pertenecen a un campo concreto. El formulario los pinta bajo
+   * ese campo (con aria-describedby) en lugar de en el aviso general.
+   */
+  fieldErrors?: Partial<Record<AuthField, string>>
+  /**
    * Email pendiente de confirmar. Cuando viene relleno, el formulario ofrece
    * reenviar el correo de verificación en lugar de dejar al usuario atascado.
    */
   unconfirmedEmail?: string
+  /** El formulario ha cumplido y pasa al paso siguiente ("revisa tu correo"). */
+  done?: boolean
 }
 
 const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/
+// Sólo descarta lo evidente; la validación real la hace Supabase al enviar.
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
+
+const RATE_LIMIT_RE = /rate limit|too many/i
+const RATE_LIMIT_MESSAGE = 'Se ha alcanzado el límite de correos por hora. Prueba dentro de un rato.'
 
 /** Sólo se aceptan rutas internas como destino post-login (evita open redirect). */
 function safeNext(raw: unknown) {
@@ -43,7 +59,12 @@ export async function signIn(_prev: AuthState, formData: FormData): Promise<Auth
   const next = safeNext(formData.get('next'))
 
   if (!identifier || !password) {
-    return { error: 'Introduce tu usuario/email y tu contraseña.' }
+    return {
+      fieldErrors: {
+        ...(!identifier && { identifier: 'Escribe tu usuario o tu email.' }),
+        ...(!password && { password: 'Escribe tu contraseña.' }),
+      },
+    }
   }
 
   const supabase = await createClient()
@@ -101,11 +122,8 @@ export async function resendConfirmation(
   })
 
   if (error) {
-    if (/rate limit|too many/i.test(error.message)) {
-      return {
-        error: 'Se ha alcanzado el límite de correos por hora. Prueba dentro de un rato.',
-        unconfirmedEmail: email,
-      }
+    if (RATE_LIMIT_RE.test(error.message)) {
+      return { error: RATE_LIMIT_MESSAGE, unconfirmedEmail: email }
     }
     return { error: 'No se pudo reenviar el correo.', unconfirmedEmail: email }
   }
@@ -118,12 +136,13 @@ export async function signUp(_prev: AuthState, formData: FormData): Promise<Auth
   const email = String(formData.get('email') ?? '').trim()
   const password = String(formData.get('password') ?? '')
 
+  const fieldErrors: AuthState['fieldErrors'] = {}
   if (!USERNAME_RE.test(username)) {
-    return { error: 'El usuario debe tener entre 3 y 20 caracteres (letras, números o _).' }
+    fieldErrors.username = 'De 3 a 20 letras, números o guiones bajos.'
   }
-  if (password.length < 8) {
-    return { error: 'La contraseña debe tener al menos 8 caracteres.' }
-  }
+  if (!EMAIL_RE.test(email)) fieldErrors.email = 'Escribe un email válido.'
+  if (password.length < 8) fieldErrors.password = 'La contraseña debe tener al menos 8 caracteres.'
+  if (Object.keys(fieldErrors).length > 0) return { fieldErrors }
 
   const supabase = await createClient()
 
@@ -132,7 +151,7 @@ export async function signUp(_prev: AuthState, formData: FormData): Promise<Auth
     .select('id')
     .eq('username', username)
     .maybeSingle()
-  if (taken) return { error: 'Ese nombre de usuario ya está en uso.' }
+  if (taken) return { fieldErrors: { username: 'Ese nombre de usuario ya está en uso.' } }
 
   const origin = await siteOrigin()
 
@@ -149,12 +168,18 @@ export async function signUp(_prev: AuthState, formData: FormData): Promise<Auth
 
   if (error) {
     if (error.message.toLowerCase().includes('already')) {
-      return { error: 'Ya existe una cuenta con ese email.' }
+      return { fieldErrors: { email: 'Ya existe una cuenta con ese email.' } }
     }
-    if (/rate limit|too many/i.test(error.message)) {
-      return { error: 'Se ha alcanzado el límite de correos por hora. Prueba dentro de un rato.' }
+    if (RATE_LIMIT_RE.test(error.message)) {
+      return { error: RATE_LIMIT_MESSAGE }
     }
-    return { error: error.message }
+    if (error.code === 'weak_password') {
+      return { fieldErrors: { password: 'Elige una contraseña más segura: mezcla letras, números y símbolos.' } }
+    }
+    if (error.code === 'email_address_invalid' || /invalid.*email|email.*invalid/i.test(error.message)) {
+      return { fieldErrors: { email: 'Ese email no parece válido.' } }
+    }
+    return { error: 'No se ha podido crear la cuenta. Inténtalo de nuevo.' }
   }
 
   const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
@@ -166,6 +191,91 @@ export async function signUp(_prev: AuthState, formData: FormData): Promise<Auth
     }
   }
 
+  revalidatePath('/', 'layout')
+  redirect('/home')
+}
+
+/**
+ * Pide el correo para restablecer la contraseña. La respuesta es la misma
+ * exista o no la cuenta: si cambiara, este formulario serviría para averiguar
+ * qué emails están registrados.
+ */
+export async function requestPasswordReset(
+  _prev: AuthState,
+  formData: FormData,
+): Promise<AuthState> {
+  const email = String(formData.get('email') ?? '').trim()
+  if (!EMAIL_RE.test(email)) return { fieldErrors: { email: 'Escribe un email válido.' } }
+
+  const supabase = await createClient()
+  const origin = await siteOrigin()
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${origin}/auth/callback?next=${RESET_PATH}`,
+  })
+
+  if (error) {
+    if (RATE_LIMIT_RE.test(error.message)) return { error: RATE_LIMIT_MESSAGE }
+    // Sin conexión con Supabase no se ha enviado nada a nadie, exista o no la
+    // cuenta: decirlo no revela nada y evita que alguien espere un correo en vano.
+    if (isAuthRetryableFetchError(error)) {
+      return { error: 'No hemos podido conectar para enviar el correo. Inténtalo de nuevo.' }
+    }
+    // El resto (incluido el "espera unos segundos" por pedirlo dos veces seguidas
+    // o un fallo al enviar el correo) sólo le pasa a cuentas que existen: se
+    // responde igual que si todo hubiera ido bien.
+  }
+
+  return {
+    notice: 'Si hay una cuenta con ese email, te hemos enviado un enlace para crear una contraseña nueva.',
+    done: true,
+  }
+}
+
+/**
+ * Guarda la contraseña nueva con la sesión que abrió el enlace del correo. Sólo
+ * vale para esa sesión (cookie que pone el callback): con una sesión normal se
+ * cambia desde Ajustes, que pide la contraseña actual.
+ */
+export async function resetPassword(_prev: AuthState, formData: FormData): Promise<AuthState> {
+  const password = String(formData.get('password') ?? '')
+  const repeat = String(formData.get('repeat') ?? '')
+
+  if (password.length < 8) {
+    return { fieldErrors: { password: 'La contraseña debe tener al menos 8 caracteres.' } }
+  }
+  if (password !== repeat) {
+    return { fieldErrors: { repeat: 'Las dos contraseñas no coinciden.' } }
+  }
+
+  const supabase = await createClient()
+  const cookieStore = await cookies()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user || cookieStore.get(RECOVERY_COOKIE)?.value !== user.id) {
+    return { error: 'El enlace ha caducado. Pide otro para cambiar la contraseña.' }
+  }
+
+  const { error } = await supabase.auth.updateUser({ password })
+  if (error) {
+    if (error.code === 'same_password') {
+      return { fieldErrors: { password: 'Es la misma contraseña que ya tenías. Elige otra distinta.' } }
+    }
+    if (error.code === 'weak_password') {
+      return { fieldErrors: { password: 'Elige una contraseña más segura: mezcla letras, números y símbolos.' } }
+    }
+    return { error: 'No se pudo cambiar la contraseña. Inténtalo de nuevo.' }
+  }
+
+  cookieStore.delete(RECOVERY_COOKIE)
+  // Si alguien pide una contraseña nueva es a menudo porque la anterior se ha
+  // filtrado: cualquier otra sesión abierta con ella deja de valer.
+  await supabase.auth.signOut({ scope: 'others' }).catch(() => {})
+
+  // Redirección desde aquí y no desde el cliente: al tocar cookies, Next vuelve
+  // a pintar /reset-password, que sin la marca ya mostraría "enlace caducado".
   revalidatePath('/', 'layout')
   redirect('/home')
 }

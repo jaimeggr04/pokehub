@@ -1,19 +1,18 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
 import type { Metadata } from 'next'
-import { ArrowLeft, Heart, MessageCircle, Pencil, User } from 'lucide-react'
+import { PawPrint, Pencil, Radar, Swords } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { requireProfile } from '@/lib/session'
 import { TEAM_SELECT } from '@/lib/queries'
 import { BuildCard } from '@/components/build-card'
-import { CopyButton } from '@/components/copy-button'
 import { Comments, type CommentItem } from '@/components/comments'
-import { LikeButton } from '@/components/like-button'
-import { ShareButton } from '@/components/share-button'
-import { DeleteTeamButton } from '@/components/delete-team-button'
+import { ShowdownExport } from '@/components/showdown-export'
+import { TeamAnalysis } from '@/components/team-analysis'
+import { TeamHero, memberName } from '@/components/team-hero'
+import { TeamSectionNav, type TeamSectionItem } from '@/components/team-section-nav'
+import { EmptyState } from '@/components/ui/empty-state'
 import { teamToShowdown } from '@/lib/showdown'
-import { timeAgo } from '@/lib/format'
 import type { TeamWithAuthor } from '@/lib/database.types'
 
 export async function generateMetadata({
@@ -49,89 +48,156 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
   const builds = [...team.builds].sort((a, b) => a.slot - b.slot)
   const isOwner = team.user_id === userId
   const comments = (commentRows ?? []) as unknown as CommentItem[]
+  const hasBuilds = builds.length > 0
+  // Mismo orden que los bloques de teamToShowdown (por hueco): ShowdownExport los empareja por posición.
+  const members = builds.map((b) => ({ pokemonId: b.pokemon_id, name: memberName(b) }))
+
+  // Sin Pokémon no hay nada que analizar ni exportar: esas secciones ni se pintan.
+  const sections: TeamSectionItem[] = [
+    { id: 'pokemon', label: 'Pokémon', count: builds.length },
+    ...(hasBuilds
+      ? [
+          { id: 'analisis', label: 'Análisis' },
+          { id: 'showdown', label: 'Showdown' },
+        ]
+      : []),
+    { id: 'comentarios', label: 'Comentarios', count: comments.length },
+  ]
 
   return (
-    <div className="mx-auto max-w-[1200px] px-3 sm:px-4">
-      <Link
-        href="/home"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-muted transition hover:text-brand"
-      >
-        <ArrowLeft size={16} /> Volver al feed
-      </Link>
-
-      <header className="mb-5 rounded-card border border-line bg-surface p-5 shadow-card">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wide text-brand">{team.format}</p>
-            <h1 className="text-2xl font-extrabold leading-tight md:text-3xl">{team.name}</h1>
-            <Link
-              href={`/u/${team.author.username}`}
-              className="mt-2 inline-flex items-center gap-2 text-sm font-semibold transition hover:text-brand"
-            >
-              <span className="grid h-7 w-7 place-items-center overflow-hidden rounded-full bg-surface-2 text-muted">
-                {team.author.avatar_url ? (
-                  <Image src={team.author.avatar_url} alt="" width={28} height={28} unoptimized className="h-full w-full object-cover" />
-                ) : (
-                  <User size={15} />
-                )}
-              </span>
-              @{team.author.username}
-            </Link>
-            <span className="ml-2 text-xs text-muted">· {timeAgo(team.created_at)}</span>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <LikeButton teamId={team.id} liked={Boolean(likeRow)} count={team.like_count} />
-            <Link
-              href="#comentarios"
-              aria-label="Ir a los comentarios"
-              className="flex items-center gap-1.5 rounded-lg bg-surface-2 px-3 py-2 text-sm shadow-card transition hover:bg-line"
-            >
-              <MessageCircle size={16} /> {team.comment_count}
-            </Link>
-            <ShareButton path={`/team/${team.id}`} title={team.name} />
-            <CopyButton text={teamToShowdown(builds)} label="Importar" copiedLabel="Copiado" />
-            {isOwner && (
-              <>
-                <Link
-                  href={`/team/${team.id}/edit`}
-                  className="flex items-center gap-2 rounded-lg bg-surface-2 px-4 py-2 text-sm font-semibold shadow-card transition hover:bg-line"
-                >
-                  <Pencil size={16} /> Editar
-                </Link>
-                <DeleteTeamButton teamId={team.id} />
-              </>
-            )}
-          </div>
-        </div>
-
-        {team.description && (
-          <p className="mt-4 whitespace-pre-wrap rounded-xl bg-surface-2 p-4 text-sm leading-relaxed shadow-pressed">
-            {team.description}
-          </p>
-        )}
-      </header>
-
-      <section aria-label="Pokémon del equipo" className="mb-8 grid gap-4 lg:grid-cols-2">
-        {builds.map((b) => (
-          <BuildCard key={b.id} build={b} />
-        ))}
-        {builds.length === 0 && (
-          <p className="rounded-card border border-dashed border-line bg-surface p-8 text-center text-sm text-muted">
-            Este equipo todavía no tiene Pokémon.
-          </p>
-        )}
-      </section>
-
-      <Comments
-        teamId={team.id}
-        comments={comments}
-        me={{ id: profile.id, username: profile.username, avatar_url: profile.avatar_url }}
+    // md:pt-4: la cabecera empieza donde acaba la pokéball que cuelga de la barra superior.
+    // Misma geometría que loading.tsx: si cambia aquí, cambiarla también allí.
+    <article aria-labelledby="team-title" className="mx-auto max-w-[1200px] px-3 sm:px-4 md:pt-4">
+      <TeamHero
+        team={team}
+        builds={builds}
+        liked={Boolean(likeRow)}
+        commentCount={comments.length}
+        isOwner={isOwner}
+        titleId="team-title"
       />
 
-      <p className="sr-only">
-        <Heart size={12} /> {team.like_count} me gusta
-      </p>
+      <TeamSectionNav items={sections} />
+
+      <div className="flex flex-col gap-12 md:gap-14">
+        <section
+          id="pokemon"
+          aria-labelledby="team-pokemon-title"
+          tabIndex={-1}
+          className="team-section outline-none"
+        >
+          <SectionHeading
+            id="team-pokemon-title"
+            icon={<PawPrint size={20} />}
+            title="Pokémon"
+            count={builds.length}
+            description="Objeto, habilidad, naturaleza, movimientos y estadísticas de cada set."
+          />
+          {hasBuilds ? (
+            <ul className="grid gap-4 lg:grid-cols-2">
+              {builds.map((build, i) => (
+                // grid: la tarjeta estira hasta la altura de su vecina de fila.
+                <li key={build.id} id={`pokemon-${build.slot}`} className="team-anchor grid">
+                  <BuildCard build={build} index={i} />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyState
+              title="Este equipo aún no tiene Pokémon"
+              description={
+                isOwner
+                  ? 'Añade hasta seis desde el editor, o pega un equipo de Showdown para importarlo de golpe.'
+                  : 'Su entrenador todavía no ha elegido a ningún Pokémon.'
+              }
+              action={
+                isOwner && (
+                  <Link href={`/team/${team.id}/edit`} className="btn btn-primary">
+                    <Pencil size={16} aria-hidden />
+                    Añadir Pokémon
+                  </Link>
+                )
+              }
+            />
+          )}
+        </section>
+
+        {hasBuilds && (
+          <>
+            <section
+              id="analisis"
+              aria-labelledby="team-analysis-title"
+              tabIndex={-1}
+              className="team-section outline-none"
+            >
+              <SectionHeading
+                id="team-analysis-title"
+                icon={<Radar size={20} />}
+                title="Análisis"
+                description="Debilidades y resistencias de tipo, velocidad y media de estadísticas base."
+              />
+              <TeamAnalysis members={members} />
+            </section>
+
+            <section
+              id="showdown"
+              aria-labelledby="team-showdown-title"
+              tabIndex={-1}
+              className="team-section outline-none"
+            >
+              <SectionHeading
+                id="team-showdown-title"
+                icon={<Swords size={20} />}
+                title="Exportar a Showdown"
+                description="Cópialo y pégalo en Teambuilder › New Team › Import from text."
+              />
+              <ShowdownExport text={teamToShowdown(builds)} teamName={team.name} members={members} />
+            </section>
+          </>
+        )}
+
+        {/* Lleva dentro su propio id="comentarios": el feed enlaza a /team/<id>#comentarios. */}
+        <Comments
+          teamId={team.id}
+          comments={comments}
+          me={{ id: profile.id, username: profile.username, avatar_url: profile.avatar_url }}
+          teamAuthorId={team.user_id}
+        />
+      </div>
+    </article>
+  )
+}
+
+/** Encabezado de sección con el mismo dibujo que el de Comentarios. */
+function SectionHeading({
+  id,
+  icon,
+  title,
+  count,
+  description,
+}: {
+  id: string
+  icon: React.ReactNode
+  title: string
+  count?: number
+  description: string
+}) {
+  return (
+    <div className="mb-4 flex items-center gap-3">
+      <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-2xl bg-brand-soft text-brand">
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <h2 id={id} className="flex items-center gap-2 text-xl font-extrabold leading-tight tracking-tight">
+          {title}
+          {count !== undefined && (
+            <span className="grid h-6 min-w-6 place-items-center rounded-full bg-surface-2 px-2 text-xs font-bold text-muted shadow-card">
+              {count}
+            </span>
+          )}
+        </h2>
+        <p className="text-sm text-muted">{description}</p>
+      </div>
     </div>
   )
 }

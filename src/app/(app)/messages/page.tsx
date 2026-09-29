@@ -1,67 +1,50 @@
 import Link from 'next/link'
-import Image from 'next/image'
-import { MessageSquare, User } from 'lucide-react'
-import { createClient } from '@/lib/supabase/server'
-import { requireProfile } from '@/lib/session'
-import { listConversations } from '@/lib/chat'
-import { timeAgo } from '@/lib/format'
+import { Search, Sparkles } from 'lucide-react'
+import { PokeballIcon } from '@/components/pokeball'
 
 export const metadata = { title: 'Mensajes' }
 
-export default async function MessagesPage() {
-  const { userId } = await requireProfile()
-  const supabase = await createClient()
-  const conversations = await listConversations(supabase, userId, 50)
-
+/**
+ * La lista de chats la pinta el layout. Esta página es el panel derecho en
+ * escritorio mientras no hay ninguna conversación abierta (en móvil no se ve).
+ */
+export default function MessagesPage() {
   return (
-    <div className="mx-auto max-w-[680px] px-3 sm:px-4">
-      <h1 className="mb-4 flex items-center gap-2 text-2xl font-extrabold">
-        <MessageSquare size={24} /> Mensajes
-      </h1>
+    <section
+      aria-labelledby="messages-welcome"
+      className="chat-wallpaper card relative flex flex-col items-center justify-center overflow-hidden px-8 text-center lg:chat-pane-h"
+    >
+      <div aria-hidden className="relative mb-8 h-28 w-40">
+        <span className="absolute left-1/2 top-3 -translate-x-1/2">
+          <PokeballIcon className="h-20 w-20 animate-float" />
+        </span>
+        <span className="absolute bottom-0 left-1/2 h-2.5 w-14 -translate-x-1/2 animate-float-shadow rounded-[50%] bg-black/15 blur-[2px] dark:bg-black/40" />
+        <span className="chat-welcome-bubble absolute -left-2 top-0 rounded-2xl rounded-bl-md bg-surface-2 px-3 py-1.5 text-sm font-semibold shadow-card">
+          ¿Combate?
+        </span>
+        <span className="chat-welcome-bubble is-late absolute -right-3 top-9 rounded-2xl rounded-br-md bg-brand px-3 py-1.5 text-sm font-semibold text-brand-fg shadow-card">
+          ¡Vamos! ⚡
+        </span>
+      </div>
 
-      {conversations.length === 0 ? (
-        <div className="rounded-card border border-dashed border-line bg-surface p-10 text-center">
-          <p className="font-semibold">Aún no tienes conversaciones</p>
-          <p className="mt-1 text-sm text-muted">
-            Entra en el perfil de un entrenador y pulsa «Mensaje» para empezar a hablar.
-          </p>
-          <Link
-            href="/search"
-            className="mt-5 inline-block rounded-full bg-brand px-6 py-2.5 text-sm font-semibold text-brand-fg shadow-card transition hover:bg-brand-strong"
-          >
-            Buscar entrenadores
-          </Link>
-        </div>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {conversations.map((c) => (
-            <li key={c.id}>
-              <Link
-                href={`/messages/${c.id}`}
-                className="flex items-center gap-3 rounded-card border border-line bg-surface px-4 py-3 shadow-card transition hover:-translate-y-px hover:shadow-float"
-              >
-                <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full bg-surface-2 text-muted">
-                  {c.other.avatar_url ? (
-                    <Image src={c.other.avatar_url} alt="" width={44} height={44} unoptimized className="h-full w-full object-cover" />
-                  ) : (
-                    <User size={20} />
-                  )}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-baseline justify-between gap-2">
-                    <span className="truncate font-bold">@{c.other.username}</span>
-                    <span className="shrink-0 text-xs text-muted">{timeAgo(c.last_message_at)}</span>
-                  </span>
-                  <span className={`block truncate text-sm ${c.unread ? 'font-semibold' : 'text-muted'}`}>
-                    {c.preview ?? 'Di hola 👋'}
-                  </span>
-                </span>
-                {c.unread && <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-brand" aria-label="Sin leer" />}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+      <h2 id="messages-welcome" className="text-2xl font-extrabold tracking-tight">
+        Tus mensajes
+      </h2>
+      <p className="mx-auto mt-2 max-w-sm text-sm text-muted">
+        Elige una conversación de la lista o busca a otro entrenador para retarle, pedirle consejo o
+        intercambiar equipos.
+      </p>
+      <Link href="/search?tipo=entrenadores" className="btn btn-primary mt-6">
+        <Search size={16} aria-hidden />
+        Buscar entrenadores
+      </Link>
+      <p className="mt-8 inline-flex max-w-sm items-start gap-2 rounded-2xl bg-brand-soft px-4 py-2.5 text-left text-xs text-ink">
+        <Sparkles size={15} aria-hidden className="mt-px shrink-0 text-brand" />
+        <span>
+          Toca la pokéball junto a la caja de texto para compartir uno de tus equipos: llegará como
+          tarjeta con sus seis Pokémon.
+        </span>
+      </p>
+    </section>
   )
 }

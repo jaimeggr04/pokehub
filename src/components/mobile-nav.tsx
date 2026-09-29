@@ -1,43 +1,96 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { Home, MessageSquare, PlusCircle, Search, User } from 'lucide-react'
+import { motion } from 'motion/react'
+import { Home, MessageSquare, Plus, Search, User, type LucideIcon } from 'lucide-react'
 import clsx from 'clsx'
+import { UnreadBadge, useUnreadCount } from '@/components/unread'
+import { isActivePath, useNavTarget } from '@/components/nav-links'
 
-const ITEMS = [
-  { href: '/home', icon: Home, label: 'Inicio' },
-  { href: '/search', icon: Search, label: 'Buscar' },
-  { href: '/team/new', icon: PlusCircle, label: 'Crear' },
-  { href: '/messages', icon: MessageSquare, label: 'Chats' },
-]
+type Tab = { href: string; label: string; icon: LucideIcon }
 
+/**
+ * Barra inferior del móvil. La píldora del activo se desliza entre pestañas
+ * nada más pulsar (sin esperar al servidor) y "Crear" es una pokéball que
+ * sobresale de la barra.
+ */
 export function MobileNav({ username }: { username: string }) {
-  const pathname = usePathname()
-  const items = [...ITEMS, { href: `/u/${username}`, icon: User, label: 'Perfil' }]
+  const { pathname, target, onNavigate } = useNavTarget()
+  const unread = useUnreadCount()
+
+  const left: Tab[] = [
+    { href: '/home', label: 'Inicio', icon: Home },
+    { href: '/search', label: 'Buscar', icon: Search },
+  ]
+  const right: Tab[] = [
+    { href: '/messages', label: 'Chats', icon: MessageSquare },
+    { href: `/u/${username}`, label: 'Perfil', icon: User },
+  ]
+
+  const renderTab = ({ href, label, icon: Icon }: Tab) => {
+    const selected = isActivePath(target, href)
+    const isChats = href === '/messages'
+    return (
+      <li key={href} className="flex">
+        <Link
+          href={href}
+          aria-current={isActivePath(pathname, href) ? 'page' : undefined}
+          onClick={onNavigate(href)}
+          className={clsx(
+            'pressable relative flex flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl text-[10.5px] font-semibold',
+            selected ? 'text-brand' : 'text-muted',
+          )}
+        >
+          {selected && (
+            <motion.span
+              layoutId="shell-tab-pill"
+              aria-hidden
+              className="absolute inset-x-1 inset-y-1.5 rounded-2xl bg-brand-soft"
+              transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+            />
+          )}
+          <span className={clsx('relative', selected && 'shell-nav-bounce')}>
+            <Icon aria-hidden size={22} strokeWidth={selected ? 2.4 : 2} />
+            {isChats && <UnreadBadge className="absolute -right-2.5 -top-1.5" />}
+          </span>
+          <span className="relative leading-tight">{label}</span>
+          {isChats && unread > 0 && <span className="sr-only">, {unread} sin leer</span>}
+        </Link>
+      </li>
+    )
+  }
+
+  const createSelected = isActivePath(target, '/team/new')
 
   return (
     <nav
       aria-label="Navegación principal"
-      className="fixed inset-x-0 bottom-0 z-40 flex h-16 items-stretch justify-around border-t border-line bg-bg-elevated pb-[env(safe-area-inset-bottom)] shadow-float md:hidden"
+      className="shell-bottomnav glass fixed inset-x-0 bottom-0 z-40 border-t border-line pb-[env(safe-area-inset-bottom)] md:hidden"
     >
-      {items.map(({ href, icon: Icon, label }) => {
-        const active = pathname === href || (href !== '/home' && pathname.startsWith(href))
-        return (
+      <ul className="mx-auto grid h-16 max-w-lg grid-cols-5 px-1.5">
+        {left.map(renderTab)}
+        <li className="relative">
           <Link
-            key={href}
-            href={href}
-            aria-current={active ? 'page' : undefined}
+            href="/team/new"
+            aria-label="Crear equipo"
+            aria-current={isActivePath(pathname, '/team/new') ? 'page' : undefined}
+            onClick={onNavigate('/team/new')}
+            data-active={createSelected ? '' : undefined}
             className={clsx(
-              'flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition',
-              active ? 'text-brand' : 'text-muted',
+              'shell-create absolute left-1/2 top-0 flex -translate-x-1/2 -translate-y-5 flex-col items-center gap-0.5 text-[10.5px] font-semibold transition-colors duration-200',
+              createSelected ? 'text-brand' : 'text-muted',
             )}
           >
-            <Icon size={22} strokeWidth={active ? 2.4 : 2} />
-            {label}
+            <span className="shell-create-ball">
+              <span className="shell-create-core">
+                <Plus aria-hidden size={13} strokeWidth={3.5} />
+              </span>
+            </span>
+            <span className="leading-tight">Crear</span>
           </Link>
-        )
-      })}
+        </li>
+        {right.map(renderTab)}
+      </ul>
     </nav>
   )
 }

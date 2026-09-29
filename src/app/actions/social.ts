@@ -2,6 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { MESSAGE_MAX_LENGTH } from '@/lib/chat'
+import type { MessageRow } from '@/lib/database.types'
 
 async function requireUser() {
   const supabase = await createClient()
@@ -83,32 +85,45 @@ export async function deleteComment(commentId: string, teamId: string) {
 }
 
 export async function startConversation(otherUserId: string) {
-  const { supabase } = await requireUser()
+  const { supabase, userId } = await requireUser()
+  if (otherUserId === userId) return { error: 'No puedes escribirte a ti mismo.' }
+
   const { data, error } = await supabase.rpc('get_or_create_dm', { other_user: otherUserId })
   if (error || !data) return { error: 'No se pudo abrir el chat.' }
   return { conversationId: data as unknown as string }
 }
 
+/**
+ * Devuelve la fila insertada: el cliente sustituye con ella su mensaje
+ * optimista y así no se duplica cuando llega el mismo INSERT por tiempo real.
+ * Sin revalidatePath a propósito: obligaría a volver a renderizar la
+ * conversación entera en cada envío, y la sala ya se actualiza sola.
+ */
 export async function sendMessage(conversationId: string, body: string) {
   const { supabase, userId } = await requireUser()
   const clean = body.trim()
   if (!clean) return { error: 'El mensaje está vacío.' }
+  if (clean.length > MESSAGE_MAX_LENGTH) return { error: `Máximo ${MESSAGE_MAX_LENGTH} caracteres.` }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('messages')
     .insert({ conversation_id: conversationId, sender_id: userId, body: clean })
-  if (error) return { error: 'No se pudo enviar el mensaje.' }
+    .select('*')
+    .single()
+  if (error || !data) return { error: 'No se pudo enviar el mensaje.' }
 
-  revalidatePath(`/messages/${conversationId}`)
-  return { ok: true }
+  return { ok: true as const, message: data as MessageRow }
 }
 
+/** Devuelve la marca guardada para que la sala pueda avisar al otro («Visto»). */
 export async function markConversationRead(conversationId: string) {
   const { supabase, userId } = await requireUser()
-  await supabase
+  const readAt = new Date().toISOString()
+  const { error } = await supabase
     .from('conversation_participants')
-    .update({ last_read_at: new Date().toISOString() })
+    .update({ last_read_at: readAt })
     .eq('conversation_id', conversationId)
     .eq('user_id', userId)
-  return { ok: true }
+  if (error) return { error: 'No se pudo marcar la conversación como leída.' }
+  return { ok: true as const, readAt }
 }

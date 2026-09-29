@@ -127,7 +127,11 @@ export async function updateTeam(teamId: string, input: TeamInput): Promise<Save
 
   if (error) return { error: 'No se pudo actualizar el equipo.' }
 
-  await supabase.from('builds').delete().eq('team_id', teamId)
+  // Los huecos se reescriben enteros: así el orden y los que se han quitado
+  // quedan como en el creador sin tener que calcular diferencias.
+  const { error: clearError } = await supabase.from('builds').delete().eq('team_id', teamId)
+  if (clearError) return { error: 'No se pudieron actualizar los Pokémon del equipo.' }
+
   const { error: buildError } = await supabase
     .from('builds')
     .insert(normalise(input.builds).map((b) => ({ ...b, team_id: teamId })))
@@ -139,14 +143,16 @@ export async function updateTeam(teamId: string, input: TeamInput): Promise<Save
   redirect(`/team/${teamId}`)
 }
 
-export async function deleteTeam(teamId: string) {
+export async function deleteTeam(teamId: string): Promise<SaveResult> {
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return { error: 'Tienes que iniciar sesión.' }
 
-  await supabase.from('teams').delete().eq('id', teamId).eq('user_id', user.id)
+  const { error } = await supabase.from('teams').delete().eq('id', teamId).eq('user_id', user.id)
+  if (error) return { error: 'No se pudo eliminar el equipo.' }
+
   revalidatePath('/home')
   redirect('/home')
 }
