@@ -80,7 +80,7 @@ export function TeamHero({
               <span className="team-hero-chip" title={`Formato: ${format}`}>
                 <Trophy size={13} aria-hidden className="shrink-0" />
                 <span className="sr-only">Formato: </span>
-                <span className="truncate">{format}</span>
+                <span className="min-w-0 truncate">{format}</span>
               </span>
             )}
             <span className="team-hero-chip">
@@ -213,9 +213,9 @@ function TeamLineup({ builds, className }: { builds: BuildRow[]; className?: str
             <a href={`#pokemon-${build.slot}`} className="team-lineup-link">
               <span aria-hidden className="team-lineup-shadow" />
               {/* relative: sin él, la sombra (absoluta) se pintaría encima al acabar la animación. */}
-              <span className="team-lineup-float relative">
+              <div className="team-lineup-float relative">
                 <PokemonArt pokemonId={build.pokemon_id} shiny={build.shiny} alt="" className="aspect-square w-full" />
-              </span>
+              </div>
               <span aria-hidden className="team-lineup-flash" />
               {build.shiny && <Sparkles aria-hidden size={18} strokeWidth={2.5} className="team-lineup-shiny" />}
               <span className="team-lineup-name">
