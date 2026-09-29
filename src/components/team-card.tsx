@@ -3,7 +3,7 @@
 import { useId, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ArrowRight, MessageCircle, Sparkles } from 'lucide-react'
+import { ArrowRight, Lock, MessageCircle, Sparkles } from 'lucide-react'
 import clsx from 'clsx'
 import { Avatar } from '@/components/ui/avatar'
 import { AnimatedNumber } from '@/components/ui/animated-number'
@@ -128,7 +128,20 @@ export function TeamCard({ team, index = 0 }: { team: TeamWithAuthor; index?: nu
           </p>
         </div>
 
-        <FormatChip format={team.format} />
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <FormatChip format={team.format} />
+          {/* La RLS sólo deja ver los privados a su dueño: sin la marca, en tu
+              perfil no se distinguen de los que ve todo el mundo. */}
+          {!team.is_public && (
+            <span
+              title="Sólo tú puedes verlo"
+              className="inline-flex h-6 items-center gap-1 rounded-full bg-surface-2 px-2.5 text-[11px] font-semibold text-muted shadow-card"
+            >
+              <Lock size={11} aria-hidden />
+              Privado
+            </span>
+          )}
+        </div>
       </header>
 
       <div className="mt-3">
