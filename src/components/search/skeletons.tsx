@@ -114,7 +114,7 @@ export function SearchHeroSkeleton() {
       <div className="flex h-4 items-center">
         <Skeleton className="h-3 w-20 rounded-md" />
       </div>
-      <div className="mt-1.5 flex h-[34px] items-center sm:h-[37.5px]">
+      <div className="mt-1.5 flex h-[30px] items-center sm:h-[37.5px]">
         <Skeleton className="h-7 w-64 max-w-full rounded-lg sm:h-8" />
       </div>
       {/* La descripción ocupa dos líneas en móvil y una desde sm. */}

@@ -49,7 +49,7 @@ export function SettingsSection({
       aria-labelledby={titleId}
       style={{ '--i': index } as React.CSSProperties}
       className={clsx(
-        'settings-section card stagger-item relative scroll-mt-16 p-5 sm:p-6 md:scroll-mt-4',
+        'settings-section card stagger-item relative scroll-mt-12 p-5 sm:p-6 md:scroll-mt-4',
         danger && 'settings-danger',
       )}
     >

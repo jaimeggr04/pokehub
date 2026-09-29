@@ -26,8 +26,8 @@ export default function Loading() {
       {/* Los trucos no dependen de datos: salen ya de verdad. */}
       <aside aria-label="Descubrir" className="hidden lg:block">
         <div className={SEARCH_RAIL}>
-          <SearchTips />
           <PopularCardSkeleton />
+          <SearchTips />
         </div>
       </aside>
     </div>

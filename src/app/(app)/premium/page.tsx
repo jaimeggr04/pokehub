@@ -269,7 +269,7 @@ function FreePlan() {
       </ul>
 
       <div className="mt-auto pt-7">
-        <Link href="/team/new" className="btn btn-soft w-full">
+        <Link href="/home" className="btn btn-soft w-full">
           Seguir entrenando
           <ArrowRight aria-hidden size={17} />
         </Link>

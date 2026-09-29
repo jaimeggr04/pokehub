@@ -87,12 +87,13 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
         </div>
       </div>
 
+      {/* Si el carril no cabe en alto tiene scroll propio: lo menos importante, los trucos, va al final. */}
       <aside aria-label="Descubrir" className="hidden lg:block">
         <div className={SEARCH_RAIL}>
-          <SearchTips />
           <Suspense fallback={<PopularCardSkeleton />}>
             <PopularPokemonCard />
           </Suspense>
+          <SearchTips />
         </div>
       </aside>
     </div>

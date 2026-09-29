@@ -13,7 +13,7 @@ const COPY: Record<SearchTipo, { noun: string; description: string }> = {
   },
   equipos: {
     noun: 'equipos',
-    description: 'Por el nombre del equipo o por los Pokémon que lleva, en inglés o en español.',
+    description: 'Por nombre del equipo o por los Pokémon que lleva, también en español.',
   },
 }
 
@@ -31,10 +31,10 @@ export function SearchHero({ term, tipo }: { term: string; tipo: SearchTipo }) {
         <Search size={13} strokeWidth={2.75} aria-hidden className="text-brand" />
         Buscar
       </p>
-      <h1 className="mt-1.5 text-[1.7rem] font-extrabold leading-tight tracking-tight sm:text-3xl">
+      <h1 className="mt-1.5 text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
         Encuentra <span className="text-gradient-brand">{copy.noun}</span>
       </h1>
-      <p className="mt-1.5 max-w-prose text-sm text-muted">{copy.description}</p>
+      <p className="mt-1.5 text-sm text-muted">{copy.description}</p>
 
       <Suspense fallback={<StatsSkeleton />}>
         <CommunityStats />
@@ -61,7 +61,8 @@ async function CommunityStats() {
   if (!stats) return <div aria-hidden className="mt-3 h-7" />
 
   const chips = [
-    { icon: Swords, value: stats.teams, label: stats.teams === 1 ? 'equipo público' : 'equipos públicos' },
+    // «equipos» a secas: sólo los públicos se pueden buscar, y en 360 px caben las dos cifras en una fila.
+    { icon: Swords, value: stats.teams, label: stats.teams === 1 ? 'equipo' : 'equipos' },
     { icon: Users, value: stats.trainers, label: stats.trainers === 1 ? 'entrenador' : 'entrenadores' },
   ]
 

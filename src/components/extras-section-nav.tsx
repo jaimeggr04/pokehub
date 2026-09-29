@@ -185,7 +185,7 @@ function SectionRail({
                     layoutId={pillId}
                     aria-hidden
                     className={clsx(
-                      'extras-rail-pill absolute inset-0 rounded-xl',
+                      'absolute inset-0 rounded-xl',
                       item.danger ? 'bg-danger-soft' : 'bg-brand-soft',
                     )}
                     transition={{ type: 'spring', stiffness: 520, damping: 40 }}

@@ -47,6 +47,16 @@ const COOKIES: StorageEntry[] = [
     ),
     lasts: 'Se borra al completar ese paso',
   },
+  {
+    name: 'ph-recovery',
+    purpose: (
+      <>
+        Temporal. Se crea al abrir un enlace para restablecer la contraseña y es lo que permite elegir la nueva sin
+        pedir la actual. Guarda el identificador de tu cuenta.
+      </>
+    ),
+    lasts: '30 minutos como máximo; se borra al cambiar la contraseña',
+  },
 ]
 
 const LOCAL: StorageEntry[] = [
@@ -264,8 +274,9 @@ export default function LegalPage() {
 
           <LegalSection index={4}>
             <p>
-              PokeHub usa <strong>una cookie de sesión</strong> y guarda unas pocas preferencias en tu navegador. Esta
-              es la lista completa. <strong>No hay analítica, ni rastreo, ni publicidad, ni cookies de terceros.</strong>
+              PokeHub sólo usa <strong>las cookies imprescindibles para tu sesión</strong> y guarda unas pocas
+              preferencias en tu navegador. Esta es la lista completa.{' '}
+              <strong>No hay analítica, ni rastreo, ni publicidad, ni cookies de terceros.</strong>
             </p>
 
             <StorageGroup title="Cookies" note="Viajan con cada petición a PokeHub." entries={COOKIES} />

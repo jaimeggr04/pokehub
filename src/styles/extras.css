@@ -327,6 +327,12 @@
     }
   }
 
+  /* <summary> no entra en la regla global de foco: se le da la misma. */
+  .extras-faq > summary:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+
   /* ------------------------------------------------------------------
      Aviso legal
      ------------------------------------------------------------------ */
