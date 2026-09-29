@@ -173,9 +173,7 @@ function SectionRail({
                 onClick={() => onSelect(item.id)}
                 className={clsx(
                   'group relative flex min-h-11 items-center gap-3 rounded-xl px-2.5 py-2 text-sm font-semibold transition-colors duration-200',
-                  selected
-                    ? item.danger ? 'text-danger' : 'text-ink'
-                    : item.danger ? 'text-danger/80 hover:text-danger' : 'text-muted hover:text-ink',
+                  item.danger ? 'extras-ink-danger' : selected ? 'text-ink' : 'text-muted hover:text-ink',
                 )}
               >
                 <span
@@ -260,9 +258,7 @@ function SectionChips({
                 onClick={() => onSelect(item.id)}
                 className={clsx(
                   'relative flex h-10 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition-colors duration-200',
-                  selected
-                    ? item.danger ? 'text-danger' : 'text-brand-fg'
-                    : item.danger ? 'text-danger/85' : 'text-muted hover:text-ink',
+                  item.danger ? 'extras-ink-danger' : selected ? 'text-brand-fg' : 'text-muted hover:text-ink',
                 )}
               >
                 {selected && (

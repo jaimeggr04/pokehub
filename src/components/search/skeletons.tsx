@@ -1,3 +1,4 @@
+import clsx from 'clsx'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TeamCardSkeleton } from '@/components/team-card'
 
@@ -9,6 +10,9 @@ import { TeamCardSkeleton } from '@/components/team-card'
 /** Rejilla de la página: columna principal y lateral a partir de lg. */
 export const SEARCH_GRID =
   'mx-auto grid max-w-[1180px] gap-6 px-3 sm:px-4 md:pt-4 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem] xl:gap-8'
+
+/** Columna principal: a lo ancho del feed, para que las tarjetas no se estiren en tableta. */
+export const SEARCH_MAIN = 'mx-auto w-full min-w-0 max-w-[760px] lg:max-w-none'
 
 /** Carril lateral fijo al hacer scroll, a la altura del de la portada. */
 export const SEARCH_RAIL = 'search-rail flex flex-col gap-4'
@@ -68,30 +72,58 @@ export function TeamListSkeleton({ label = 'Buscando equipos…' }: { label?: st
   )
 }
 
+// Ficha de Pokémon popular: sprite cuadrado, nombre, equipos y barra; sale 2:3.
+const POKE_TILE = 'aspect-[2/3] rounded-2xl'
+
 /** Tarjeta de Pokémon populares de la columna lateral. */
 export function PopularCardSkeleton() {
   return (
     <div aria-hidden className="card p-4">
       <Skeleton className="h-4 w-36 rounded-md" />
-      <Skeleton className="mt-2 h-3 w-48 rounded-md" />
-      <div className="mt-4 grid grid-cols-3 gap-2">
+      <Skeleton className="mt-2.5 h-3 w-full rounded-md" />
+      <Skeleton className="mt-1.5 h-3 w-2/3 rounded-md" />
+      <div className="mt-3 grid grid-cols-3 gap-2">
         {Array.from({ length: 9 }, (_, i) => (
-          <Skeleton key={i} className="aspect-[4/5] rounded-2xl" />
+          <Skeleton key={i} className={POKE_TILE} />
         ))}
       </div>
     </div>
   )
 }
 
-/** Cabecera de la página: título, cuadro de búsqueda y pestañas. */
+/** Sección de Pokémon populares de la columna principal (por debajo de lg). */
+export function PopularRowSkeleton({ className }: { className?: string }) {
+  return (
+    <div aria-hidden className={clsx('lg:hidden', className)}>
+      <div className="flex h-4 items-center">
+        <Skeleton className="h-3 w-40 rounded-md" />
+      </div>
+      <div className="-mx-3 flex gap-2.5 overflow-hidden px-3 pb-3 pt-3 sm:mx-0 sm:grid sm:grid-cols-6 sm:px-0 sm:pb-0">
+        {Array.from({ length: 12 }, (_, i) => (
+          <Skeleton key={i} className={clsx(POKE_TILE, 'w-[5.75rem] shrink-0 sm:w-auto')} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** Cabecera de la página: título, cifras, cuadro de búsqueda y pestañas (como search-hero.tsx). */
 export function SearchHeroSkeleton() {
   return (
     <div aria-hidden>
-      <Skeleton className="h-3 w-20 rounded-md" />
-      <Skeleton className="mt-2.5 h-8 w-64 max-w-full rounded-lg sm:h-9" />
-      <Skeleton className="mt-2.5 h-3.5 w-full max-w-md rounded-md" />
+      <div className="flex h-4 items-center">
+        <Skeleton className="h-3 w-20 rounded-md" />
+      </div>
+      <div className="mt-1.5 flex h-[34px] items-center sm:h-[37.5px]">
+        <Skeleton className="h-7 w-64 max-w-full rounded-lg sm:h-8" />
+      </div>
+      {/* La descripción ocupa dos líneas en móvil y una desde sm. */}
+      <div className="mt-1.5 flex h-10 flex-col justify-center gap-2 sm:h-5">
+        <Skeleton className="h-3.5 w-full max-w-md rounded-md" />
+        <Skeleton className="h-3.5 w-1/2 rounded-md sm:hidden" />
+      </div>
       <div className="mt-3 flex gap-2">
-        <Skeleton className="h-7 w-32 rounded-full" />
+        <Skeleton className="h-7 w-36 rounded-full" />
         <Skeleton className="h-7 w-32 rounded-full" />
       </div>
       <Skeleton className="mt-5 h-13 rounded-full sm:h-14" />

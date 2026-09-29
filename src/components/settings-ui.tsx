@@ -12,14 +12,12 @@ export type ActionResult = { error?: string; success?: string }
 /**
  * Aviso flotante con el resultado de una acción. El mensaje en línea se queda
  * en la tarjeta; el toast es el que se anuncia a los lectores de pantalla.
+ * `success` sustituye al texto del servidor por un título más corto.
  */
-export function notifyResult(result: ActionResult, successTitle?: string) {
+export function notifyResult(result: ActionResult, success?: { title: string; description?: string }) {
   if (result.error) toast(result.error, { tone: 'error' })
   else if (result.success) {
-    toast(successTitle ?? result.success, {
-      tone: 'success',
-      description: successTitle ? result.success : undefined,
-    })
+    toast(success?.title ?? result.success, { tone: 'success', description: success?.description })
   }
 }
 
@@ -66,7 +64,7 @@ export function SettingsSection({
           {icon}
         </span>
         <div className="min-w-0 pt-0.5">
-          <h2 id={titleId} className={clsx('text-lg font-bold leading-tight', danger && 'text-danger')}>
+          <h2 id={titleId} className="text-lg font-bold leading-tight">
             {title}
           </h2>
           <p className="mt-0.5 text-sm text-muted">{description}</p>
@@ -103,7 +101,8 @@ export function SubSection({
 
 /**
  * Resultado en línea de la última acción. Sin rol de región viva: el toast ya
- * lo anuncia y así no se lee dos veces. La key reinicia la entrada en cada envío.
+ * lo anuncia y así no se lee dos veces. Quien lo usa le pasa como key el
+ * número de envío, para que la entrada se repita aunque el texto sea el mismo.
  */
 export function InlineFeedback({ state }: { state: ActionResult }) {
   if (!state.error && !state.success) return null
@@ -114,7 +113,7 @@ export function InlineFeedback({ state }: { state: ActionResult }) {
     <p
       className={clsx(
         'flex animate-scale-in items-start gap-2 rounded-xl px-3.5 py-2.5 text-sm font-medium',
-        isError ? 'bg-danger-soft text-danger' : 'bg-success-soft text-success',
+        isError ? 'extras-ink-danger bg-danger-soft' : 'extras-ink-success bg-success-soft',
       )}
     >
       <Icon aria-hidden size={17} className="mt-px shrink-0" />
@@ -192,7 +191,7 @@ export function Field({ label, hint, invalid, counter, prefix, className, ...pro
       {(invalid || hint) && (
         <p
           id={hintId}
-          className={clsx('mt-1.5 text-xs leading-relaxed', invalid ? 'font-medium text-danger' : 'text-muted')}
+          className={clsx('mt-1.5 text-xs leading-relaxed', invalid ? 'extras-ink-danger font-medium' : 'text-muted')}
         >
           {invalid ?? hint}
         </p>

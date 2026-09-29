@@ -54,8 +54,8 @@
     .search-hero {
       background-image: var(--search-hero-ball);
       background-repeat: no-repeat;
-      background-position: right -2.25rem top -1.75rem;
-      background-size: 10.5rem;
+      background-position: right 0.25rem top 0;
+      background-size: 7.5rem;
     }
   }
 
@@ -63,12 +63,18 @@
      Cuadro de búsqueda (search-box.tsx)
      ------------------------------------------------------------------ */
 
+  /* Borde, fondo y sombra aquí y no como utilidades en el JSX: si no, las
+     utilidades ganarían a los estados de foco de más abajo. */
   .search-input {
     appearance: none;
+    border: 1px solid var(--border);
+    border-radius: 9999px;
+    background-color: var(--surface-2);
+    color: var(--text);
+    box-shadow: var(--shadow);
     transition:
       border-color var(--dur-fast) ease,
-      box-shadow var(--dur) var(--ease-out-expo),
-      background-color var(--dur) ease;
+      box-shadow var(--dur) var(--ease-out-expo);
   }
 
   /* El aspa nativa de type="search" sobra: hay un botón propio para borrar. */
@@ -83,15 +89,23 @@
     text-overflow: ellipsis;
   }
 
-  /* Borde de marca y halo en vez del contorno global: en una píldora se ve
-     como parte del campo y no como un recuadro añadido. */
+  @media (hover: hover) {
+    .search-input:hover:not(:focus) {
+      border-color: color-mix(in srgb, var(--brand) 35%, var(--border));
+    }
+  }
+
   .search-input:focus {
-    outline: none;
     border-color: var(--brand);
     box-shadow: 0 0 0 4px var(--ring), var(--shadow);
   }
 
-  /* El icono de la lupa se enciende con el campo. */
+  /* La lupa se enciende con el campo. */
+  .search-box-icon {
+    color: var(--muted);
+    transition: color var(--dur-fast) ease;
+  }
+
   .search-box:focus-within .search-box-icon {
     color: var(--brand);
   }
@@ -104,7 +118,9 @@
     top: calc(100% + 0.5rem);
     left: 0;
     right: 0;
-    z-index: 40;
+    /* Por encima de las pestañas pegadas (z-20) y por debajo de la cabecera
+       fija (z-40): si se desplaza la página con él abierto, pasa por debajo. */
+    z-index: 30;
     display: flex;
     flex-direction: column;
     max-height: min(28rem, 64dvh);
@@ -497,6 +513,21 @@
   .search-rail:hover::-webkit-scrollbar-thumb,
   .search-rail:focus-within::-webkit-scrollbar-thumb {
     background-color: var(--border);
+  }
+}
+
+/* Fuera de capa a propósito: el contorno de foco global de globals.css no
+   tiene capa y ganaría a cualquier regla dentro de una. En el campo, el borde
+   de marca con halo ya marca el foco; un contorno encima sobraría. */
+.search-input:focus-visible {
+  outline: none;
+}
+
+/* En contraste forzado las sombras desaparecen: ahí vuelve el contorno. */
+@media (forced-colors: active) {
+  .search-input:focus-visible {
+    outline: 2px solid CanvasText;
+    outline-offset: 2px;
   }
 }
 

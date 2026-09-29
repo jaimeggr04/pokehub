@@ -226,6 +226,15 @@
     }
   }
 
+  /* El panel recorta mientras se despliega, pero un desplegable abierto dentro
+     (entity-picker marca su raíz con data-picker-open) tiene que poder salirse. */
+  .builder-slot-panel {
+    overflow: hidden;
+    overflow: clip;
+  }
+
+  .builder-slot-panel:has([data-picker-open]) { overflow: visible; }
+
   .builder-slot-chevron {
     transition: rotate var(--dur-slow) var(--ease-spring);
   }

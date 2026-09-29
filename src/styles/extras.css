@@ -150,6 +150,305 @@
     color: #4a3200;
     box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.6), 0 2px 8px -2px rgb(255 180 60 / 0.7);
   }
+
+  /* ------------------------------------------------------------------
+     Texto sobre fondos suaves (bg-*-soft)
+     ------------------------------------------------------------------ */
+
+  /* En letra pequeña el tono puro se queda corto de contraste sobre su propio
+     fondo suave: se acerca al color de texto del tema (más oscuro en claro,
+     más luminoso en oscuro) sin perder el matiz. */
+  .extras-ink-brand { color: color-mix(in oklab, var(--brand) 70%, var(--text)); }
+  .extras-ink-success { color: color-mix(in oklab, var(--success) 70%, var(--text)); }
+  .extras-ink-warning { color: color-mix(in oklab, var(--warning) 70%, var(--text)); }
+  .extras-ink-danger { color: color-mix(in oklab, var(--danger) 70%, var(--text)); }
+
+  /* ------------------------------------------------------------------
+     Índice de secciones (extras-section-nav.tsx): Configuración y legal
+     ------------------------------------------------------------------ */
+
+  /* Pegado a la altura a la que empieza el contenido, bajo la pokéball que
+     cuelga 40 px de la cabecera (el carril sólo existe de md en adelante), y
+     como mucho hasta 16 px por encima del pie fijo de 36 px. */
+  .extras-rail {
+    position: sticky;
+    top: calc(var(--header-h) + 40px);
+    max-height: calc(100dvh - var(--header-h) - 40px - 52px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+
+  /* Bordes difuminados: insinúan que la fila de chips sigue sin cortar en seco. */
+  .extras-chips {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 8px, #000 calc(100% - 8px), transparent);
+    mask-image: linear-gradient(to right, transparent, #000 8px, #000 calc(100% - 8px), transparent);
+  }
+
+  /* ------------------------------------------------------------------
+     Configuración
+     ------------------------------------------------------------------ */
+
+  /* Banda de la vista previa del perfil: la "portada" de tu ficha. Sólo lleva
+     decoración, así que el degradado no tiene que sostener texto. */
+  .settings-hero-band {
+    background-image:
+      radial-gradient(120% 160% at 0% 0%, rgb(255 255 255 / 0.24), transparent 55%),
+      var(--brand-gradient);
+  }
+
+  .settings-drop {
+    transition:
+      border-color var(--dur) var(--ease-out-expo),
+      background-color var(--dur) var(--ease-out-expo);
+  }
+
+  .settings-drop[data-dragging] {
+    border-color: var(--brand);
+    background-color: var(--brand-soft);
+  }
+
+  .settings-drop-avatar {
+    transition: scale var(--dur) var(--ease-spring);
+  }
+
+  .settings-drop-avatar:disabled {
+    cursor: progress;
+  }
+
+  /* Al arrastrar encima, la foto "se acerca" a recibir la imagen. */
+  .settings-drop[data-dragging] .settings-drop-avatar {
+    scale: 1.07;
+  }
+
+  @media (hover: hover) {
+    .settings-drop-avatar:not(:disabled):hover {
+      scale: 1.03;
+    }
+  }
+
+  /* Zona de peligro: canto rojo y una cinta de advertencia arriba, como las de
+     obra. El overflow recorta la cinta con el radio de la tarjeta. */
+  .settings-danger {
+    overflow: hidden;
+    border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+    background-image: linear-gradient(to bottom, var(--danger-soft), transparent 9rem);
+  }
+
+  .settings-danger::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto;
+    height: 5px;
+    background-image: repeating-linear-gradient(-45deg, var(--danger) 0 9px, transparent 9px 18px);
+    opacity: 0.75;
+  }
+
+  /* Botón de borrado definitivo: sólido y oscurecido para que el texto blanco
+     tenga contraste también con el rojo claro del tema oscuro. */
+  .settings-danger-solid {
+    background-color: color-mix(in oklab, var(--danger) 72%, black);
+    color: #fff;
+    box-shadow: var(--shadow);
+  }
+
+  @media (hover: hover) {
+    .settings-danger-solid:not(:disabled):hover {
+      background-color: color-mix(in oklab, var(--danger) 60%, black);
+      box-shadow: var(--shadow), 0 8px 22px -6px color-mix(in srgb, var(--danger) 60%, transparent);
+    }
+  }
+
+  /* ------------------------------------------------------------------
+     Premium
+     ------------------------------------------------------------------ */
+
+  /* Degradado de marca con un velo oscuro: sus extremos claros (naranja en
+     claro, lila y rosa en oscuro) dejarían el texto blanco sin contraste. */
+  .extras-premium-hero {
+    background-image:
+      radial-gradient(90% 120% at 0% 0%, rgb(255 255 255 / 0.2), transparent 55%),
+      linear-gradient(rgb(20 6 12 / 0.28), rgb(20 6 12 / 0.28)),
+      var(--brand-gradient);
+  }
+
+  .extras-premium-hero :is(h1, p) {
+    text-shadow: 0 1px 2px rgb(0 0 0 / 0.18);
+  }
+
+  .dark .extras-premium-hero {
+    background-image:
+      radial-gradient(90% 120% at 0% 0%, rgb(255 255 255 / 0.14), transparent 55%),
+      linear-gradient(rgb(18 8 40 / 0.45), rgb(18 8 40 / 0.45)),
+      var(--brand-gradient);
+  }
+
+  /* Subrayado de trazo, como un rotulador sobre la palabra. */
+  .extras-premium-word {
+    background: linear-gradient(transparent 72%, rgb(255 255 255 / 0.28) 72%, rgb(255 255 255 / 0.28) 92%, transparent 92%);
+    padding-inline: 0.08em;
+  }
+
+  .extras-premium-ball {
+    animation: ph-spin 60s linear infinite;
+  }
+
+  .extras-premium-spark {
+    animation: extras-twinkle 2.6s ease-in-out infinite;
+  }
+
+  /* Plan destacado: borde con el degradado de marca (dos fondos: el de la
+     tarjeta recortado al relleno y el degradado asomando por el borde). */
+  .extras-plan-featured {
+    border: 2px solid transparent;
+    background:
+      linear-gradient(var(--bg-elevated), var(--bg-elevated)) padding-box,
+      var(--brand-gradient) border-box;
+  }
+
+  .extras-faq > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .extras-faq-chevron {
+    transition: rotate var(--dur-slow) var(--ease-spring);
+  }
+
+  .extras-faq[open] .extras-faq-chevron {
+    rotate: 180deg;
+  }
+
+  .extras-faq[open] > .extras-faq-body {
+    animation: ph-fade-up 0.4s var(--ease-out-expo);
+  }
+
+  @media (hover: hover) {
+    .extras-faq > summary:hover {
+      color: var(--brand);
+    }
+  }
+
+  /* ------------------------------------------------------------------
+     Aviso legal
+     ------------------------------------------------------------------ */
+
+  /* Texto largo con ritmo de lectura. Sólo los hijos directos: las tablas de
+     almacenamiento traen su propio formato. */
+  .extras-prose {
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    color: color-mix(in srgb, var(--text) 88%, var(--muted));
+  }
+
+  .extras-prose > * + * {
+    margin-top: 0.85rem;
+  }
+
+  .extras-prose > h3 {
+    margin-top: 1.5rem;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.35;
+    color: var(--text);
+  }
+
+  .extras-prose > h3:first-child {
+    margin-top: 0;
+  }
+
+  .extras-prose > ul {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding-left: 1.25rem;
+    list-style: none;
+  }
+
+  /* Viñetas de pokéball diminuta: rojo arriba, blanco abajo. */
+  .extras-prose > ul > li {
+    position: relative;
+  }
+
+  .extras-prose > ul > li::before {
+    content: '';
+    position: absolute;
+    left: -1.1rem;
+    top: 0.6em;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 9999px;
+    background: linear-gradient(var(--brand) 0 45%, var(--band) 45% 55%, var(--surface-2) 55%);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--band) 60%, transparent);
+  }
+
+  .extras-prose strong {
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .extras-prose a:not(.btn) {
+    font-weight: 600;
+    color: var(--brand);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    transition: text-decoration-thickness var(--dur-fast) ease;
+  }
+
+  .extras-prose a:not(.btn):hover {
+    text-decoration-thickness: 2px;
+  }
+
+  .extras-prose code:not(.extras-key) {
+    padding: 0.05rem 0.35rem;
+    border-radius: 0.375rem;
+    background-color: color-mix(in srgb, var(--text) 8%, transparent);
+    font-size: 0.85em;
+  }
+
+  /* Nombre de cookie o clave: se corta en cualquier punto antes que desbordar a 360 px. */
+  .extras-key {
+    display: inline-block;
+    max-width: 100%;
+    padding: 0.2rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background-color: var(--bg-elevated);
+    color: var(--text);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+
+  /* El enlace a la sección asoma al pasar por encima (en táctil, siempre visible). */
+  @media (hover: hover) {
+    .extras-anchor {
+      opacity: 0;
+    }
+
+    .extras-legal-section:hover .extras-anchor,
+    .extras-anchor:focus-visible {
+      opacity: 1;
+    }
+  }
+}
+
+/* Fuera de capa a propósito: tienen que ganar a utilidades que también animan
+   (stagger-item) o que fijan el foco (btn). */
+
+/* Al llegar por un ancla (#cuenta, #cookies…), la tarjeta destella un momento. */
+.settings-section:target,
+.extras-legal-section:target {
+  animation: extras-target 1.6s var(--ease-out-expo);
+}
+
+.settings-danger:target {
+  --extras-target: var(--danger);
+}
+
+/* Sobre el degradado de marca el anillo de foco de marca no se vería. */
+.extras-on-brand :focus-visible {
+  outline-color: #fff;
 }
 
 @keyframes extras-rustle {
@@ -184,6 +483,16 @@
   to { opacity: 1; transform: none; }
 }
 
+@keyframes extras-target {
+  0%, 100% { box-shadow: var(--shadow); }
+  35% {
+    box-shadow:
+      var(--shadow),
+      0 0 0 2px var(--extras-target, var(--brand)),
+      0 0 0 8px color-mix(in srgb, var(--extras-target, var(--brand)) 18%, transparent);
+  }
+}
+
 @keyframes extras-star-fly {
   0% { opacity: 0; transform: translate(0, 0) scale(0.2) rotate(0deg); }
   30% { opacity: 1; }
@@ -198,7 +507,9 @@
     animation-delay: 0s !important;
   }
 
-  .extras-rays {
+  .extras-rays,
+  .extras-premium-ball,
+  .extras-premium-spark {
     animation: none;
   }
 }
