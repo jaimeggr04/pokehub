@@ -433,7 +433,7 @@ export function EmailSentPanel({
   return (
     <div className="animate-fade-in">
       <AuthHeading icon={MailCheck} tone="success" title={title} subtitle={children} headingRef={headingRef} />
-      <ul className="mb-6 flex flex-col gap-2 rounded-2xl bg-bg/60 p-4 text-left text-[13px] text-muted shadow-pressed">
+      <ul className="auth-tips">
         {tips.map((tip) => (
           <li key={tip} className="flex gap-2">
             <span aria-hidden className="mt-[7px] size-1.5 shrink-0 rounded-full bg-brand" />

@@ -2,14 +2,12 @@
 
 import { useEffect, useId, useRef, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { ArrowLeft, Check, Hourglass, KeyRound, LockKeyhole, Mail } from 'lucide-react'
 import { requestPasswordReset, resetPassword } from '@/app/(auth)/actions'
 import {
   AuthHeading, EMAIL_RE, EmailSentPanel, FormAlert, PasswordField, PasswordStrength,
   SubmitButton, TextField, useAuthForm, type FieldErrors,
 } from '@/components/auth-fields'
-import { toast } from '@/components/ui/toast'
 
 function BackLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
@@ -132,7 +130,6 @@ function ForgotPasswordStep({ issue, onRetry }: { issue?: keyof typeof ISSUES; o
 /* ---------------------------- /reset-password ---------------------------- */
 
 export function ResetPasswordForm({ email }: { email: string }) {
-  const router = useRouter()
   const [password, setPassword] = useState('')
   const [repeat, setRepeat] = useState('')
   const strengthId = useId()
@@ -147,17 +144,6 @@ export function ResetPasswordForm({ email }: { email: string }) {
     else if (pw && again !== pw) errors.repeat = 'Las dos contraseñas no coinciden.'
     return errors
   })
-
-  // El aviso se lanza antes de navegar: el Toaster vive en el layout raíz y
-  // sobrevive al cambio de página, así que se ve ya dentro de la app.
-  useEffect(() => {
-    if (!state.done) return
-    toast('Contraseña actualizada', {
-      tone: 'success',
-      description: 'Ya estás dentro. Hemos cerrado la sesión en tus otros dispositivos.',
-    })
-    router.replace('/home')
-  }, [state.done, router])
 
   const matches = repeat.length > 0 && repeat === password
 
@@ -219,7 +205,7 @@ export function ResetPasswordForm({ email }: { email: string }) {
             </Link>
           </FormAlert>
         )}
-        <SubmitButton pending={pending || Boolean(state.done)} pendingLabel="Guardando…">
+        <SubmitButton pending={pending} pendingLabel="Guardando…">
           Guardar y entrar
         </SubmitButton>
       </form>

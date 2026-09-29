@@ -18,7 +18,10 @@ type BallState = 'closed' | 'shaking' | 'opening' | 'open' | 'closing'
 // Deben coincidir con las duraciones de .pokeball-half y .pokeball-button (globals.css).
 const SHAKE_MS = 900
 const OPEN_MS = 850
-const CLOSE_MS = 600
+// Al cerrar, el botón espera a que las mitades casi se toquen para reaparecer
+// (si no, surge encima del formulario); `closing` dura hasta que termina.
+const BALL_RETURN_DELAY_MS = 350
+const CLOSE_MS = BALL_RETURN_DELAY_MS + 600
 
 const MODE_PATH: Record<AuthMode, string> = { login: '/login', register: '/register' }
 const MODE_TITLE: Record<AuthMode, string> = {
@@ -120,6 +123,9 @@ export function AuthScreen({
   // `expanded` gobierna la altura de las mitades; durante `closing` ya vuelven a
   // la posición cerrada, por eso sólo es cierto en opening/open.
   const expanded = state === 'opening' || state === 'open'
+  // El formulario ya está dentro mientras la bola se abre (las mitades lo
+  // descubren al retirarse) y sigue ahí mientras se cierra (lo tapan).
+  const withContent = expanded || state === 'closing'
 
   return (
     <BallFrame
@@ -149,6 +155,7 @@ export function AuthScreen({
               // Abierta, la bola no existe para el teclado ni para los lectores.
               inert={expanded}
               className="pokeball-button auth-ball"
+              style={state === 'closing' ? { animationDelay: `${BALL_RETURN_DELAY_MS}ms` } : undefined}
             >
               <PokeballCore className="h-full w-full" pulsing={state === 'closed'} />
             </button>
@@ -156,7 +163,7 @@ export function AuthScreen({
         )
       }
     >
-      {state === 'open' && (
+      {withContent && (
         <>
           {!startOpen && (
             <button type="button" onClick={closeBall} className="auth-close">
@@ -229,6 +236,10 @@ function BallFrame({
         {hero}
       </header>
 
+      {/* Entre las dos mitades también en el DOM: tras el eslogan, es lo
+          siguiente que alcanza el tabulador. */}
+      {ball}
+
       {/* Mitad inferior = pie */}
       <div data-state={state} data-expanded={expanded || undefined} className="pokeball-half auth-bottom">
         {welcome}
@@ -243,17 +254,24 @@ function BallFrame({
         </footer>
       </div>
 
-      {ball}
-
       <main className="auth-main">
-        {state === 'open' && (
-          <>
-            <span aria-hidden className="auth-glow" />
-            <section className="auth-card">{children}</section>
-          </>
-        )}
+        {children && <AuthCard revealing={state === 'opening'}>{children}</AuthCard>}
       </main>
     </div>
+  )
+}
+
+function AuthCard({ revealing, children }: { revealing: boolean; children: React.ReactNode }) {
+  // Se decide al montar: si aparece con la bola abriéndose, entra con retraso
+  // para no llegar antes que las mitades; en /login entra enseguida.
+  const [delayed] = useState(revealing)
+  return (
+    <>
+      <span aria-hidden className="auth-glow" />
+      <section className="auth-card" data-delayed={delayed || undefined}>
+        {children}
+      </section>
+    </>
   )
 }
 
@@ -280,7 +298,7 @@ function MasterBallMarks() {
 function Hero() {
   return (
     <div className="auth-hero">
-      <p className="auth-eyebrow">La red social de entrenadores Pokémon</p>
+      <p className="auth-eyebrow">Red social de entrenadores Pokémon</p>
       <h1 className="auth-hero-title">
         Comparte tus equipos.{' '}
         <span className="auth-hero-accent">Domina el meta.</span>

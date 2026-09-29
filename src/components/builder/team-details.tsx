@@ -83,11 +83,18 @@ export function TeamDetails({
               <option key={f} value={f} />
             ))}
           </datalist>
-          {/* Atajos: en móvil el <datalist> apenas se ve, y así se elige de un toque. */}
+        </div>
+
+        {/* Atajos: en móvil el <datalist> apenas se ve, y así se elige de un toque.
+            En md+ van a todo el ancho, bajo los dos campos, y caben en una línea. */}
+        <div className="-mt-2 flex min-w-0 items-center gap-2 md:col-span-2">
+          <span id={`${id}-formats-label`} className="shrink-0 text-xs text-muted max-md:sr-only">
+            Formatos habituales:
+          </span>
           <div
             role="group"
-            aria-label="Formatos habituales"
-            className="builder-chip-row no-scrollbar -mx-1 mt-2 flex gap-1.5 overflow-x-auto px-1 pb-1"
+            aria-labelledby={`${id}-formats-label`}
+            className="builder-chip-row no-scrollbar -mx-1 flex min-w-0 gap-1.5 overflow-x-auto px-1 py-0.5 md:flex-wrap md:overflow-visible"
           >
             {FORMATS.map((f) => (
               <button

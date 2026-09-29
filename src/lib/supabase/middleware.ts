@@ -4,7 +4,10 @@ import { NextResponse, type NextRequest } from 'next/server'
 // La recuperación de contraseña es pública pero, a diferencia de /login y
 // /register, no echa a quien ya tiene sesión: /reset-password se usa justo con
 // la sesión que abre el enlace, y desde Ajustes se manda a /forgot-password.
-const PUBLIC_ROUTES = ['/', '/login', '/register', '/auth', '/forgot-password', '/reset-password']
+// /legal también: el registro enlaza a las condiciones antes de tener cuenta.
+const PUBLIC_ROUTES = [
+  '/', '/login', '/register', '/auth', '/forgot-password', '/reset-password', '/legal',
+]
 const GUEST_ONLY_ROUTES = ['/login', '/register']
 
 // Manifest, iconos e imagen para compartir que genera Next (src/app/manifest.ts,

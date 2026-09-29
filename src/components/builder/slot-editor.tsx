@@ -39,6 +39,11 @@ export type SlotEditorProps = {
   duplicate: boolean
   /** El hueco se acaba de añadir: se abre el selector de especie al montarse. */
   autoPick: boolean
+  /**
+   * Entra animado. Sólo los que se añaden después de cargar: los que vienen
+   * del servidor no deben salir invisibles en el HTML a la espera de hidratar.
+   */
+  appear: boolean
   catalog: Catalog
   onToggle: (key: string) => void
   onPatch: (key: string, changes: SlotPatch) => void
@@ -99,6 +104,7 @@ export const SlotEditor = memo(function SlotEditor({
   open,
   duplicate,
   autoPick,
+  appear,
   catalog,
   onToggle,
   onPatch,
@@ -117,9 +123,11 @@ export const SlotEditor = memo(function SlotEditor({
   const [failedId, setFailedId] = useState(0)
   const [attempt, setAttempt] = useState(0)
   const [picking, setPicking] = useState(false)
+  // Especie ya descargada al elegirla en el selector: no hace falta pedirla otra vez por número.
+  const known = useRef<PokemonDetail | null>(null)
 
   useEffect(() => {
-    if (!slot.pokemon_id) return
+    if (!slot.pokemon_id || known.current?.id === slot.pokemon_id) return
     let alive = true
     resolvePokemon([String(slot.pokemon_id)])
       .then((p) => {
@@ -159,11 +167,21 @@ export const SlotEditor = memo(function SlotEditor({
     if (!found) return
     setPicking(true)
     // Al cambiar de especie, habilidad y movimientos dejan de ser válidos.
+    const failed = () =>
+      toast('No se pudo cargar ese Pokémon', {
+        tone: 'error',
+        description: 'La PokéAPI no ha respondido. Inténtalo otra vez.',
+      })
     resolvePokemon([value])
       .then((p) => {
-        if (p) patch({ pokemon_id: p.id, pokemon_name: p.name, ability: '', moves: [...NO_MOVES] })
-        else toast('No se pudo cargar ese Pokémon', { tone: 'error', description: 'La PokéAPI no ha respondido. Inténtalo otra vez.' })
-      })
+        if (!p) {
+          failed()
+          return
+        }
+        known.current = p
+        setSpecies(p)
+        patch({ pokemon_id: p.id, pokemon_name: p.name, ability: '', moves: [...NO_MOVES] })
+      }, failed)
       .finally(() => setPicking(false))
   }
 
@@ -178,7 +196,7 @@ export const SlotEditor = memo(function SlotEditor({
     <motion.article
       ref={setCard}
       layout="position"
-      initial={{ opacity: 0, y: 14 }}
+      initial={appear ? { opacity: 0, y: 14 } : false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 420, damping: 36 }}
       data-open={open || undefined}
@@ -540,7 +558,7 @@ function SlotFields({
               value={slot.gender}
               options={GENDER_OPTIONS}
               onChange={(gender) => onPatch({ gender })}
-              className="[&_.builder-seg-option>span]:text-base"
+              className="[&_.builder-seg-option>span]:text-lg"
             />
 
             <div className="col-span-2 sm:col-span-1">

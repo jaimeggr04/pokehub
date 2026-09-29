@@ -111,10 +111,7 @@ export function Segmented<T extends string>({
               {o.icon && (
                 <span
                   aria-hidden
-                  className={clsx(
-                    'builder-seg-icon grid shrink-0 place-items-center transition-colors duration-(--dur)',
-                    size === 'lg' ? 'size-9 rounded-xl bg-surface text-muted' : 'size-5',
-                  )}
+                  className={clsx('builder-seg-icon grid shrink-0 place-items-center', size === 'md' && 'size-5')}
                 >
                   {o.icon}
                 </span>

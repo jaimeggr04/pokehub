@@ -74,6 +74,8 @@ export function TeamBuilder({
   const [slots, setSlots] = useState<Slot[]>(() =>
     builds && builds.length ? [...builds].sort((a, b) => a.slot - b.slot).map(slotFromBuild) : [emptySlot()],
   )
+  // Los que llegan con la página no se animan al entrar (ver SlotEditor).
+  const [initialKeys] = useState(() => new Set(slots.map((s) => s.key)))
   // En un equipo nuevo, el primer hueco ya abierto: es lo primero que hay que rellenar.
   const [openKey, setOpenKey] = useState<string | null>(() => (editing ? null : (slots[0]?.key ?? null)))
   // Hueco recién añadido: su selector de especie se abre solo al montarse.
@@ -673,7 +675,9 @@ export function TeamBuilder({
             className={clsx('btn btn-soft', importOpen && 'bg-brand-soft text-brand')}
           >
             <ClipboardPaste size={16} aria-hidden />
-            Importar<span className="max-sm:hidden"> de Showdown</span>
+            <span>
+              Importar<span className="max-sm:hidden"> de Showdown</span>
+            </span>
           </button>
           <button
             type="button"
@@ -774,7 +778,7 @@ export function TeamBuilder({
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_21rem] xl:grid-cols-[minmax(0,1fr)_23rem]">
         {/* Primero en el DOM: en móvil el equipo va arriba; en escritorio, en la columna lateral. */}
         <aside aria-label="Resumen del equipo" className="min-w-0 lg:col-start-2 lg:row-start-1 lg:self-stretch">
-          <div className="builder-rail space-y-4">
+          <div className="builder-rail flex flex-col gap-4">
             <TeamPanel
               slots={slots}
               openKey={openKey}
@@ -838,6 +842,7 @@ export function TeamBuilder({
                     open={openKey === slot.key}
                     duplicate={duplicates.has(i)}
                     autoPick={justAdded === slot.key}
+                    appear={!initialKeys.has(slot.key)}
                     catalog={catalog}
                     onToggle={toggleSlot}
                     onPatch={patchSlot}

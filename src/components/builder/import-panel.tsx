@@ -56,6 +56,11 @@ export function ImportPanel({
     setBusy(true)
     try {
       await onImport(text)
+    } catch {
+      toast('No se ha podido importar el equipo', {
+        tone: 'error',
+        description: 'La PokéAPI no ha respondido. Comprueba tu conexión e inténtalo otra vez.',
+      })
     } finally {
       setBusy(false)
     }

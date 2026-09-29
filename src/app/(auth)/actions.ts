@@ -22,7 +22,7 @@ export interface AuthState {
    * reenviar el correo de verificación en lugar de dejar al usuario atascado.
    */
   unconfirmedEmail?: string
-  /** La acción terminó bien y el cliente se encarga de lo que sigue. */
+  /** El formulario ha cumplido y pasa al paso siguiente ("revisa tu correo"). */
   done?: boolean
 }
 
@@ -274,8 +274,10 @@ export async function resetPassword(_prev: AuthState, formData: FormData): Promi
   // filtrado: cualquier otra sesión abierta con ella deja de valer.
   await supabase.auth.signOut({ scope: 'others' }).catch(() => {})
 
+  // Redirección desde aquí y no desde el cliente: al tocar cookies, Next vuelve
+  // a pintar /reset-password, que sin la marca ya mostraría "enlace caducado".
   revalidatePath('/', 'layout')
-  return { done: true }
+  redirect('/home')
 }
 
 type OAuthProvider = 'google' | 'github'
