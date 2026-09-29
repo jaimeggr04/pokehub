@@ -135,7 +135,8 @@ export function PokemonSpotlight({
         </div>
 
         <div className="min-w-0 flex-1">
-          <p className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-muted">
+          {/* div y no p: dentro va un Skeleton, que es un div, y un p no puede contenerlo. */}
+          <div className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-muted">
             {dex !== null && <span className="shrink-0 tabular-nums">{dexNumber(dex)}</span>}
             {species?.genus ? (
               <>
@@ -145,7 +146,7 @@ export function PokemonSpotlight({
             ) : (
               !failed && <Skeleton className="h-3 w-24 rounded-md" />
             )}
-          </p>
+          </div>
           <h3 id={titleId} className="mt-0.5 text-xl font-extrabold leading-tight tracking-tight [overflow-wrap:anywhere] sm:text-2xl">
             {label}
           </h3>

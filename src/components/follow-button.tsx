@@ -160,13 +160,13 @@ export function FollowButton({
         className={clsx('relative inline-flex items-center', size === 'sm' ? 'gap-1.5' : 'gap-2')}
       >
         <Icon
-          key={Icon === Check ? `check-${celebrate}` : label}
+          key={Icon === Check ? `icon-check-${celebrate}` : `icon-${label}`}
           size={size === 'sm' ? 15 : 17}
           strokeWidth={2.4}
           aria-hidden
           className={clsx('shrink-0', Icon === Check && 'text-success', Icon === Check && popping && 'animate-pop')}
         />
-        <span key={label} className={clsx('whitespace-nowrap', live && 'profile-follow-label')}>
+        <span key={`label-${label}`} className={clsx('whitespace-nowrap', live && 'profile-follow-label')}>
           {label}
         </span>
       </motion.span>
