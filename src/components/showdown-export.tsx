@@ -233,8 +233,7 @@ export function ShowdownExport({
 
 function CodeBlock({ block, slot, member }: { block: string; slot: number; member?: ShowdownMember }) {
   const { copied, copy } = useCopy()
-  const lines = block.split('
-')
+  const lines = block.split('\n')
   const name = member?.name ?? lines[0].split(' @ ')[0]
 
   return (
@@ -273,8 +272,7 @@ function CodeBlock({ block, slot, member }: { block: string; slot: number; membe
           {lines.map((line, i) => (
             <Fragment key={i}>
               {highlight(line, i)}
-              {i < lines.length - 1 && '
-'}
+              {i < lines.length - 1 && '\n'}
             </Fragment>
           ))}
         </code>

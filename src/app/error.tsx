@@ -1,6 +1,9 @@
 'use client'
 
 import { useEffect } from 'react'
+import Link from 'next/link'
+import { Home, RotateCcw } from 'lucide-react'
+import { ErrorArt, StatusScreen } from '@/components/status-screen'
 
 export default function GlobalError({
   error,
@@ -14,19 +17,31 @@ export default function GlobalError({
   }, [error])
 
   return (
-    <div className="grid min-h-dvh place-items-center px-6 text-center">
-      <div>
-        <h1 className="text-3xl font-extrabold">Algo ha fallado</h1>
-        <p className="mx-auto mt-2 max-w-sm text-sm text-muted">
-          Ha ocurrido un error inesperado. Puedes intentarlo de nuevo.
-        </p>
-        <button
-          onClick={reset}
-          className="mt-6 rounded-full bg-brand px-6 py-2.5 text-sm font-semibold text-brand-fg shadow-card transition hover:bg-brand-strong"
-        >
-          Reintentar
-        </button>
-      </div>
-    </div>
+    <StatusScreen
+      art={<ErrorArt />}
+      eyebrow="¡El ataque falló!"
+      title="Algo ha salido mal"
+      description="Ha ocurrido un error inesperado al cargar esta página. Suele bastar con volver a intentarlo; si se repite, prueba de nuevo en unos minutos."
+      actions={
+        <>
+          <button type="button" onClick={reset} className="btn btn-primary btn-lg">
+            <RotateCcw size={18} aria-hidden />
+            Reintentar
+          </button>
+          <Link href="/home" className="btn btn-soft btn-lg">
+            <Home size={18} aria-hidden />
+            Ir al inicio
+          </Link>
+        </>
+      }
+      // El identificador es lo único útil para buscar el fallo en los registros.
+      footnote={
+        error.digest ? (
+          <>
+            Código del error: <code className="rounded-md bg-surface px-1.5 py-0.5 font-mono">{error.digest}</code>
+          </>
+        ) : null
+      }
+    />
   )
 }
