@@ -111,3 +111,15 @@ export function parseBattleLink(input: string): { roomId: string; formatId: stri
   const [, formatId, num, password = ''] = match
   return { roomId: `battle-${formatId.toLowerCase()}-${num}${password.toLowerCase()}`, formatId: formatId.toLowerCase() }
 }
+
+/**
+ * Id de una repetición de Showdown. Vive aquí (sin dependencias) para que la
+ * portada pueda validar enlaces sin cargar la calculadora:
+ * "https://replay.pokemonshowdown.com/gen9…-2689618698" (o sólo el id) -> id.
+ */
+export function parseReplayLink(input: string): string | null {
+  const trimmed = input.trim()
+  if (!/replay\.pokemonshowdown\.com|^[a-z0-9]+-\d+(-[a-z0-9]+pw)?$/i.test(trimmed)) return null
+  const match = trimmed.match(/([a-z0-9]+-\d+(?:-[a-z0-9]+pw)?)(?:\.json|\.log)?(?:[?#].*)?$/i)
+  return match ? match[1].toLowerCase() : null
+}

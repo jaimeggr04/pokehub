@@ -317,6 +317,7 @@ function PaletteDialog({ username, onClose }: { username: string; onClose: () =>
   const navCommands: Command[] = [
     { id: 'nav-home', group: 'nav', label: 'Inicio', hint: 'Los últimos equipos de la comunidad', icon: Home, keywords: 'feed portada home equipos', badge: here('/home'), perform: navigate('/home') },
     { id: 'nav-search', group: 'nav', label: 'Buscar', hint: 'Entrenadores, equipos y Pokémon', icon: Search, keywords: 'usuarios gente perfiles seguir amigos equipos pokemon', badge: here('/search'), perform: navigate('/search') },
+    { id: 'nav-battle', group: 'nav', label: 'Asistente de partida', hint: 'Consejos en directo para tus combates de Showdown', icon: Swords, keywords: 'partida combate batalla showdown vgc champions consejos asistente coach rival', badge: here('/battle'), perform: navigate('/battle') },
     { id: 'nav-new', group: 'nav', label: 'Crear equipo', hint: 'Monta un equipo nuevo desde cero', icon: PlusCircle, keywords: 'nuevo builder team constructor montar', badge: here('/team/new'), perform: navigate('/team/new') },
     {
       id: 'nav-messages',
@@ -335,6 +336,16 @@ function PaletteDialog({ username, onClose }: { username: string; onClose: () =>
   ]
 
   const actionCommands: Command[] = [
+    {
+      id: 'action-battle',
+      group: 'actions',
+      label: 'Seguir un combate de Showdown',
+      hint: 'Pega el enlace y juega con consejos',
+      icon: Swords,
+      keywords: 'partida combate batalla showdown enlace link pegar directo repeticion replay asistente vgc',
+      // ?pegar deja el campo del enlace enfocado, listo para pegar.
+      perform: navigate('/battle?pegar=1'),
+    },
     {
       id: 'action-theme',
       group: 'actions',

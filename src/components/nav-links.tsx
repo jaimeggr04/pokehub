@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion, useReducedMotion, useSpring, useTransform } from 'motion/react'
-import { Home, MessageSquare, PlusCircle, Search, type LucideIcon } from 'lucide-react'
+import { Home, MessageSquare, PlusCircle, Search, Swords, type LucideIcon } from 'lucide-react'
 import clsx from 'clsx'
 import { PokeballCore } from '@/components/pokeball'
 import { UnreadBadge, useUnreadCount } from '@/components/unread'
@@ -109,10 +109,13 @@ export function trapTabKey(e: KeyboardEvent | React.KeyboardEvent, container: HT
 
 type NavItem = { href: string; label: string; icon: LucideIcon }
 
-// Dos a cada lado de la pokéball central, que hace de "hub" de la navegación.
+// A los lados de la pokéball central, que hace de "hub" de la navegación. El
+// asistente de partida va pegado a ella: es la función estrella. La izquierda
+// admite tres porque a la derecha, a partir de xl, el buscador ocupa sitio.
 const LEFT: NavItem[] = [
   { href: '/home', label: 'Inicio', icon: Home },
   { href: '/search', label: 'Buscar', icon: Search },
+  { href: '/battle', label: 'Partida', icon: Swords },
 ]
 const RIGHT: NavItem[] = [
   { href: '/team/new', label: 'Crear equipo', icon: PlusCircle },

@@ -15,13 +15,7 @@ export type Replay = {
   log: string
 }
 
-/** "https://replay.pokemonshowdown.com/gen9…-2689618698" (o sólo el id) -> id. */
-export function parseReplayLink(input: string): string | null {
-  const trimmed = input.trim()
-  if (!/replay\.pokemonshowdown\.com|^[a-z0-9]+-\d+(-[a-z0-9]+pw)?$/i.test(trimmed)) return null
-  const match = trimmed.match(/([a-z0-9]+-\d+(?:-[a-z0-9]+pw)?)(?:\.json|\.log)?(?:[?#].*)?$/i)
-  return match ? match[1].toLowerCase() : null
-}
+export { parseReplayLink } from '@/lib/battle/formats'
 
 export async function fetchReplay(id: string): Promise<Replay | null> {
   try {

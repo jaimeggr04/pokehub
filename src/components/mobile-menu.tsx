@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { AnimatePresence, motion, type Variants } from 'motion/react'
 import {
-  ChevronRight, FileText, Home, LogOut, Menu, MessageSquare, PlusCircle, Search, Settings, Sparkles, User, X,
+  ChevronRight, FileText, Home, LogOut, Menu, MessageSquare, PlusCircle, Search, Settings, Sparkles, Swords, User, X,
   type LucideIcon,
 } from 'lucide-react'
 import clsx from 'clsx'
@@ -94,6 +94,7 @@ export function MobileMenu({
   const nav: Entry[] = [
     { href: '/home', icon: Home, label: 'Inicio' },
     { href: '/search', icon: Search, label: 'Buscar' },
+    { href: '/battle', icon: Swords, label: 'Asistente de partida' },
     { href: '/team/new', icon: PlusCircle, label: 'Crear equipo' },
     { href: '/messages', icon: MessageSquare, label: 'Mensajes' },
     { href: `/u/${username}`, icon: User, label: 'Mi perfil' },
