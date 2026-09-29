@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { Generations, toID } from '@smogon/calc'
-import { formatFromId } from '@/lib/battle/formats'
+import { formatFromId, usageSources } from '@/lib/battle/formats'
 import type { Share, UsageData, UsageEntry } from '@/lib/battle/usage'
 
 /*
@@ -112,11 +112,20 @@ export async function GET(_request: Request, { params }: { params: Promise<{ for
   let data = cached && Date.now() - cached.at < TTL ? cached.data : null
 
   if (!data) {
-    const source = await locate(format).catch(() => null)
+    let source: { month: string; url: string } | null = null
+    let from = format
+    for (const candidate of usageSources(format)) {
+      source = await locate(candidate).catch(() => null)
+      if (source) {
+        from = candidate
+        break
+      }
+    }
     if (!source) return NextResponse.json({ error: 'Sin estadísticas para este formato' }, { status: 404 })
     const res = await fetch(source.url, { cache: 'no-store' }).catch(() => null)
     if (!res?.ok) return NextResponse.json({ error: 'Smogon no responde' }, { status: 502 })
-    data = condense((await res.json()) as Chaos, format, source.month)
+    // `format` dice de qué formato son los datos de verdad (puede ser el anterior).
+    data = condense((await res.json()) as Chaos, from, source.month)
     memory.set(format, { at: Date.now(), data })
   }
 

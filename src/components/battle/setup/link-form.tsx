@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useId, useMemo, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
 import {
   AlertTriangle, ArrowRight, ClipboardPaste, Hand, History, Loader2, PlayCircle, Radio, X,
 } from 'lucide-react'
@@ -46,7 +46,6 @@ export function BattleLinkForm({
   autoFocus?: boolean
 }) {
   const router = useRouter()
-  const reduce = useReducedMotion()
   const uid = useId()
   const inputId = `${uid}-link`
   const statusId = `${uid}-status`
@@ -131,14 +130,14 @@ export function BattleLinkForm({
 
   // El modo manual hereda el formato del enlace si es uno de los conocidos.
   const manualFormat = (detected && getFormat(detected.format.id)) || DEFAULT_FORMAT
-  const motionProps = reduce
-    ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
-    : {
-        initial: { opacity: 0, y: -4 },
-        animate: { opacity: 1, y: 0 },
-        exit: { opacity: 0, y: -4 },
-        transition: { duration: 0.2 },
-      }
+  // Sin ramas por movimiento reducido: MotionConfig (reducedMotion="user") ya
+  // quita el desplazamiento, y una rama aquí rompe la hidratación.
+  const motionProps = {
+    initial: { opacity: 0, y: -4 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: -4 },
+    transition: { duration: 0.2 },
+  }
 
   return (
     <form onSubmit={onSubmit} noValidate aria-label="Seguir una partida" className="card p-4 sm:p-5">
@@ -240,7 +239,7 @@ export function BattleLinkForm({
         </AnimatePresence>
       </div>
 
-      <fieldset className="mt-4">
+      <fieldset className="mt-4 min-w-0">
         <legend id={legendId} className="flex w-full items-baseline gap-2 text-sm font-bold">
           ¿Con qué equipo juegas?
           <span className="text-xs font-medium text-muted">Opcional</span>

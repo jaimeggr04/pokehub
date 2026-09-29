@@ -220,7 +220,7 @@ function ManualSetup({
         </div>
       )}
 
-      <div className="mt-5 grid gap-4">
+      <div className="mt-5 grid grid-cols-1 gap-4">
         {/* 1. Formato */}
         <section aria-labelledby={ids.format} className="card p-4 stagger-item" style={{ '--i': 1 } as React.CSSProperties}>
           <StepTitle id={ids.format} n={1}>
@@ -414,7 +414,7 @@ export function ManualSkeleton() {
         <Skeleton className="mt-3 h-3 w-28 rounded-md" />
         <Skeleton className="mt-2 h-8 w-60 rounded-md" />
         <Skeleton className="mt-2 h-4 w-full max-w-md rounded-md" />
-        <div className="mt-5 grid gap-4">
+        <div className="mt-5 grid grid-cols-1 gap-4">
           <Skeleton className="h-28 w-full rounded-card" />
           <Skeleton className="h-40 w-full rounded-card" />
           <Skeleton className="h-64 w-full rounded-card" />

@@ -10,7 +10,7 @@ export const EXAMPLE_REPLAY_ID = 'gen9championsvgc2026regmb-2689618698'
 
 /** Enlaces de muestra para el mensaje de error (válidos, con otro número). */
 export const LINK_EXAMPLES = [
-  'https://play.pokemonshowdown.com/battle-gen9championsvgc2026regmb-2690000000',
+  'https://play.pokemonshowdown.com/battle-gen9championsvgc2026regmc-2690000000',
   'https://replay.pokemonshowdown.com/gen9championsvgc2026regmb-2689618698',
 ]
 

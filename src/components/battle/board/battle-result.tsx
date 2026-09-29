@@ -34,12 +34,13 @@ export function BattleResult({
         : outcome === 'tie'
           ? 'Empate'
           : `Gana ${state.winner}`
+  const turns = state.turn === 1 ? '1 turno' : `${state.turn} turnos`
   const subtitle =
     outcome === 'win'
-      ? `Contra ${state.sides[them].name || 'tu rival'}, en ${state.turn} turnos.`
+      ? `Contra ${state.sides[them].name || 'tu rival'}, en ${turns}.`
       : outcome === 'loss'
-        ? `Gana ${state.winner} en ${state.turn} turnos. ¡A por la revancha!`
-        : `${state.turn} turnos.`
+        ? `Gana ${state.winner} en ${turns}. ¡A por la revancha!`
+        : `En ${turns}.`
 
   const summary = (side: SideId) => {
     const team = state.sides[side].team

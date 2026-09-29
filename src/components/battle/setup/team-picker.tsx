@@ -71,7 +71,7 @@ export function TeamPicker({
         <span aria-hidden className="battle-s-team-check">
           <Check size={13} strokeWidth={3} />
         </span>
-        <span className="flex items-center gap-1.5 text-sm font-semibold">
+        <span className="flex items-center gap-1.5 pr-5 text-sm font-semibold">
           <Sparkles aria-hidden size={15} className="text-brand" />
           {noneLabel}
         </span>

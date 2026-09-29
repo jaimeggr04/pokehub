@@ -21,9 +21,29 @@ export type BattleFormat = {
 
 export const FORMATS: BattleFormat[] = [
   {
+    id: 'gen9championsvgc2026regmc',
+    label: 'Champions VGC 2026 · Reg M-C',
+    short: 'VGC Champions',
+    gameType: 'doubles',
+    calcGen: 0,
+    level: 50,
+    statPoints: true,
+    tera: false,
+  },
+  {
+    id: 'gen9championsvgc2026regmcbo3',
+    label: 'Champions VGC 2026 · Reg M-C (Bo3)',
+    short: 'VGC Champions Bo3',
+    gameType: 'doubles',
+    calcGen: 0,
+    level: 50,
+    statPoints: true,
+    tera: false,
+  },
+  {
     id: 'gen9championsvgc2026regmb',
     label: 'Champions VGC 2026 · Reg M-B',
-    short: 'VGC Champions',
+    short: 'VGC M-B',
     gameType: 'doubles',
     calcGen: 0,
     level: 50,
@@ -33,7 +53,7 @@ export const FORMATS: BattleFormat[] = [
   {
     id: 'gen9championsvgc2026regmbbo3',
     label: 'Champions VGC 2026 · Reg M-B (Bo3)',
-    short: 'VGC Champions Bo3',
+    short: 'VGC M-B Bo3',
     gameType: 'doubles',
     calcGen: 0,
     level: 50,
@@ -73,6 +93,24 @@ export const FORMATS: BattleFormat[] = [
 ]
 
 export const DEFAULT_FORMAT = FORMATS[0]
+
+/**
+ * De dónde sacar las estadísticas de uso de un formato, por orden. Al empezar
+ * una regulación Smogon tarda hasta un mes en publicar sus datos: mientras,
+ * se usan los de la versión a mejor de tres o los de la regulación anterior
+ * (Reg M-C -> Reg M-B), que comparten casi todo el plantel.
+ */
+export function usageSources(id: string): string[] {
+  const sources = [id]
+  const base = id.replace(/bo3$/, '')
+  if (base !== id) sources.push(base)
+  const reg = base.match(/^(.*reg[a-z])([b-z])$/)
+  if (reg) {
+    const previous = String.fromCharCode(reg[2].charCodeAt(0) - 1)
+    sources.push(`${reg[1]}${previous}`)
+  }
+  return [...new Set(sources)]
+}
 
 export function getFormat(id: string | null | undefined): BattleFormat | null {
   if (!id) return null

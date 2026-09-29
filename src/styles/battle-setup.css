@@ -25,7 +25,7 @@
   .battle-s-area-hero { grid-area: hero; }
   .battle-s-area-steps { grid-area: steps; }
   .battle-s-area-form { grid-area: form; }
-  .battle-s-area-help { grid-area: help; }
+  .battle-s-area-help { grid-area: help; align-self: start; }
 
   @media (min-width: 64rem) {
     .battle-s-grid {
@@ -336,3 +336,7 @@
     .battle-s-slots { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   }
 }
+
+/* El campo ya pinta su anillo con :focus-within; el contorno global de
+   :focus-visible (fuera de capas, por eso va aquí) lo duplicaría dentro. */
+.battle-s-field input:focus-visible { outline: none; }

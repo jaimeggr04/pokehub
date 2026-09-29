@@ -17,14 +17,19 @@ export type Replay = {
 
 export { parseReplayLink } from '@/lib/battle/formats'
 
-export async function fetchReplay(id: string): Promise<Replay | null> {
+export async function fetchReplay(id: string, attempts = 2): Promise<Replay | null> {
   try {
     const res = await fetch(`https://replay.pokemonshowdown.com/${encodeURIComponent(id)}.json`)
-    if (!res.ok) return null
+    // 404 = no existe o es privada: reintentar no sirve. Un 5xx sí puede pasar.
+    if (!res.ok) throw Object.assign(new Error(String(res.status)), { retry: res.status >= 500 })
     const data = (await res.json()) as { id: string; formatid: string; players: string[]; uploadtime: number; log: string }
     return { id: data.id, formatId: data.formatid, players: data.players, uploadtime: data.uploadtime, log: data.log }
-  } catch {
-    return null
+  } catch (e) {
+    // Un corte de red en el móvil no debería acabar en "no encontramos esa repetición".
+    const retry = (e as { retry?: boolean }).retry ?? true
+    if (!retry || attempts <= 1) return null
+    await new Promise((r) => setTimeout(r, 800))
+    return fetchReplay(id, attempts - 1)
   }
 }
 
