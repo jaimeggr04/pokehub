@@ -1,0 +1,327 @@
+/* Feed de inicio y tarjetas de equipo (feed). */
+
+:root {
+  /* Corazón relleno para máscaras: el corazón grande del doble toque y parte del confeti. */
+  --feed-heart: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/%3E%3C/svg%3E");
+}
+
+/* En la capa de componentes: cualquier utilidad de Tailwind puesta en el JSX
+   sigue pudiendo sobrescribir estas reglas. */
+@layer components {
+  /* ------------------------------------------------------------------
+     Tarjeta de equipo
+     ------------------------------------------------------------------ */
+
+  /* Ficha de formato: tinte suave del color del formato, texto con el color de
+     tinta del tema para que se lea igual en claro y en oscuro. */
+  .feed-format {
+    color: var(--text);
+    background-color: color-mix(in srgb, var(--chip) 16%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chip) 40%, transparent);
+  }
+
+  .feed-slot {
+    cursor: pointer;
+    transition-property: translate, box-shadow, background-color;
+    transition-duration: var(--dur);
+    transition-timing-function: var(--ease-out-expo);
+  }
+
+  /* Plataforma bajo el Pokémon, como en los combates. */
+  .feed-slot::before {
+    content: '';
+    position: absolute;
+    left: 20%;
+    right: 20%;
+    bottom: 12%;
+    height: 11%;
+    border-radius: 50%;
+    background-color: color-mix(in srgb, var(--text) 11%, transparent);
+  }
+
+  .feed-slot:active {
+    translate: 0 2px;
+    transition-duration: var(--dur-fast);
+  }
+
+  /* El seleccionado se queda hundido, como un botón pulsado. */
+  .feed-slot[aria-pressed='true'] {
+    translate: 0 2px;
+    background-color: color-mix(in srgb, var(--brand) 12%, var(--surface-2));
+    box-shadow: var(--inset), 0 0 0 2px var(--brand);
+  }
+
+  /* Pixelado sólo cuando el sprite se amplía; al reducirlo (móvil) el suavizado
+     se ve más limpio que los píxeles que se pierden. */
+  .feed-sprite {
+    image-rendering: auto;
+    transform-origin: 50% 78%;
+  }
+
+  @media (min-width: 40rem) {
+    .feed-sprite { image-rendering: pixelated; }
+  }
+
+  @media (hover: hover) {
+    .feed-slot:not([aria-pressed='true']):hover {
+      background-color: color-mix(in srgb, var(--brand) 7%, var(--surface-2));
+      box-shadow: var(--shadow-lg);
+    }
+
+    .feed-slot:hover .feed-sprite { animation: feed-hop .52s var(--ease-out-expo); }
+    .feed-slot:hover::before { animation: feed-hop-shadow .52s var(--ease-out-expo); }
+  }
+
+  /* Entrada de los sprites: justo después de la tarjeta y uno tras otro.
+     --i lo hereda de la tarjeta (stagger-item) y --s es la posición en el equipo. */
+  .feed-slot-pop,
+  .feed-slot-empty {
+    animation: feed-sprite-in .5s var(--ease-spring) backwards;
+    animation-delay: calc(min(var(--i, 0), 14) * 45ms + 140ms + var(--s, 0) * 40ms);
+  }
+
+  /* ------------------------------------------------------------------
+     Corazones y confeti (heart-burst.tsx)
+     ------------------------------------------------------------------ */
+
+  .feed-burst {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+  }
+
+  .feed-burst-dot {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: var(--dot);
+    height: var(--dot);
+    border-radius: 9999px;
+    background-color: var(--c);
+    opacity: 0;
+    animation: feed-burst-dot .6s var(--ease-out-expo) var(--delay, 0ms) forwards;
+  }
+
+  /* En la ráfaga grande, uno de cada tres es un corazoncito. */
+  .feed-burst[data-size='lg'] .feed-burst-dot:nth-child(3n + 2) {
+    width: calc(var(--dot) * 1.5);
+    height: calc(var(--dot) * 1.5);
+    border-radius: 0;
+    -webkit-mask: var(--feed-heart) center / contain no-repeat;
+    mask: var(--feed-heart) center / contain no-repeat;
+  }
+
+  .feed-burst-ring {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: var(--ring);
+    height: var(--ring);
+    border: 2px solid var(--brand);
+    border-radius: 9999px;
+    opacity: 0;
+    animation: feed-burst-ring .65s var(--ease-out-expo) forwards;
+  }
+
+  /* La sombra va en el envoltorio: la máscara del corazón recortaría la suya. */
+  .feed-big-heart-wrap {
+    filter: drop-shadow(0 10px 22px color-mix(in srgb, var(--brand) 45%, transparent));
+  }
+
+  .feed-big-heart {
+    background-image:
+      radial-gradient(circle at 32% 30%, rgb(255 255 255 / .55), transparent 30%),
+      var(--brand-gradient);
+    -webkit-mask: var(--feed-heart) center / contain no-repeat;
+    mask: var(--feed-heart) center / contain no-repeat;
+    opacity: 0;
+    animation: feed-big-heart .9s var(--ease-out-expo) forwards;
+  }
+
+  /* ------------------------------------------------------------------
+     Saludo y compañero (feed-greeting.tsx)
+     ------------------------------------------------------------------ */
+
+  .feed-companion-sprite { animation: feed-companion-in .55s var(--ease-spring) backwards; }
+
+  /* Respiración mínima del compañero: se nota que está vivo, no llama la atención. */
+  .feed-companion-idle { animation: feed-idle-bob 4.2s ease-in-out infinite; }
+
+  /* ------------------------------------------------------------------
+     Fila de entrenadores (trainer-stories.tsx)
+     ------------------------------------------------------------------ */
+
+  /* Bordes difuminados: insinúan que la fila sigue sin cortar a nadie en seco. */
+  .feed-stories {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 14px, #000 calc(100% - 14px), transparent);
+    mask-image: linear-gradient(to right, transparent, #000 14px, #000 calc(100% - 14px), transparent);
+  }
+
+  .feed-story-ring {
+    position: relative;
+    isolation: isolate;
+    padding: 2.5px;
+    border-radius: 9999px;
+  }
+
+  /* Aro en degradado de marca que gira un poco al pasar por encima. */
+  .feed-story-ring::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background-image: var(--brand-gradient);
+    transition: rotate .7s var(--ease-out-expo);
+  }
+
+  @media (hover: hover) {
+    .feed-story:hover .feed-story-ring::before { rotate: 160deg; }
+  }
+
+  .feed-story:focus-visible .feed-story-ring::before { rotate: 160deg; }
+
+  /* ------------------------------------------------------------------
+     Columnas laterales fijas (page.tsx)
+     ------------------------------------------------------------------ */
+
+  /* Pegadas bajo la pokéball de la cabecera (que cuelga 40 px), a la misma
+     altura que el inicio del feed, y como mucho hasta 16 px por encima del
+     pie fijo de 36 px. Sólo existen en lg+, donde la cabecera mide 112 px. */
+  .feed-rail {
+    position: sticky;
+    top: calc(var(--header-h) + 40px);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-height: calc(100dvh - var(--header-h) - 40px - 52px);
+  }
+
+  /* Si el contenido no cabe, scroll propio. El margen negativo con padding
+     deja sitio a las sombras, que el overflow recortaría. */
+  .feed-rail-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: -6px;
+    padding: 6px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+
+  /* La barra sólo aparece con el puntero encima o el foco dentro. */
+  .feed-rail-scroll:hover,
+  .feed-rail-scroll:focus-within {
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .feed-rail-scroll::-webkit-scrollbar-thumb { background-color: transparent; }
+  .feed-rail-scroll:hover::-webkit-scrollbar-thumb,
+  .feed-rail-scroll:focus-within::-webkit-scrollbar-thumb { background-color: var(--border); }
+
+  .feed-suggestions > li {
+    animation: ph-fade-up .5s var(--ease-out-expo) backwards;
+  }
+  .feed-suggestions > li:nth-child(2) { animation-delay: 50ms; }
+  .feed-suggestions > li:nth-child(3) { animation-delay: 100ms; }
+  .feed-suggestions > li:nth-child(4) { animation-delay: 150ms; }
+  .feed-suggestions > li:nth-child(5) { animation-delay: 200ms; }
+
+  /* ------------------------------------------------------------------
+     Botón flotante de crear (feed-list.tsx)
+     ------------------------------------------------------------------ */
+
+  @media (hover: hover) {
+    .feed-fab:hover .feed-fab-ball { animation: feed-fab-spin .7s var(--ease-spring); }
+  }
+
+  .feed-fab:focus-visible .feed-fab-ball { animation: feed-fab-spin .7s var(--ease-spring); }
+
+  /* Plegado: la etiqueta se cierra con grid 1fr -> 0fr y el botón queda redondo. */
+  .feed-fab-label {
+    display: grid;
+    grid-template-columns: 1fr;
+    transition:
+      grid-template-columns var(--dur-slow) var(--ease-out-expo),
+      opacity var(--dur) var(--ease-out-expo);
+  }
+
+  .feed-fab[data-collapsed='true'] .feed-fab-label {
+    grid-template-columns: 0fr;
+    opacity: 0;
+  }
+
+  /* ------------------------------------------------------------------
+     Final del feed
+     ------------------------------------------------------------------ */
+
+  /* Un único bamboleo de captura al llegar al final, y luego el destello. */
+  .feed-end-ball { animation: ph-catch 2.4s ease-in-out .2s 1 backwards; }
+  .feed-end-stars { animation: ph-scale-in .4s var(--ease-spring) 2.3s backwards; }
+}
+
+@keyframes feed-sprite-in {
+  from { opacity: 0; transform: translateY(8px) scale(.6); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Salto con estirón al subir y aplastamiento al caer. */
+@keyframes feed-hop {
+  0%, 100% { transform: none; }
+  30% { transform: translateY(-9px) scale(.97, 1.05); }
+  55% { transform: translateY(0) scale(1.07, .93); }
+  75% { transform: translateY(-2px) scale(.99, 1.01); }
+}
+
+@keyframes feed-hop-shadow {
+  0%, 100% { scale: 1; opacity: 1; }
+  30% { scale: .7; opacity: .55; }
+  55% { scale: 1.1; opacity: 1; }
+}
+
+@keyframes feed-burst-dot {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.2); }
+  15% { opacity: 1; }
+  45% {
+    opacity: 1;
+    transform: translate(calc(-50% + var(--dx) * .8), calc(-50% + var(--dy) * .8)) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0);
+  }
+}
+
+@keyframes feed-burst-ring {
+  0% { opacity: .85; transform: translate(-50%, -50%) scale(.15); border-width: 5px; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1); border-width: 1px; }
+}
+
+@keyframes feed-big-heart {
+  0% { opacity: 0; transform: scale(.2) rotate(-14deg); }
+  18% { opacity: 1; transform: scale(1.18) rotate(5deg); }
+  32% { transform: scale(.94) rotate(-2deg); }
+  46% { transform: scale(1.04) rotate(0); }
+  72% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: translateY(-26px) scale(.84); }
+}
+
+/* El compañero sale de su pokéball: pequeño, rebota y se asienta. */
+@keyframes feed-companion-in {
+  0% { opacity: 0; transform: translateY(10px) scale(.2); }
+  60% { opacity: 1; transform: translateY(-3px) scale(1.08); }
+  100% { opacity: 1; transform: none; }
+}
+
+@keyframes feed-idle-bob {
+  0%, 100% { transform: none; }
+  50% { transform: translateY(-2px); }
+}
+
+@keyframes feed-fab-spin {
+  from { transform: rotate(0); }
+  to { transform: rotate(360deg); }
+}

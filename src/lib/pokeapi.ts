@@ -8,8 +8,16 @@
 
 const API = 'https://pokeapi.co/api/v2'
 const memory = new Map<string, unknown>()
+// Peticiones en curso: seis fichas de un equipo pidiendo "protect" a la vez
+// comparten una sola descarga en vez de lanzar seis.
+const inflight = new Map<string, Promise<unknown>>()
 
-async function get<T>(path: string): Promise<T> {
+/**
+ * `slim` recorta la respuesta antes de guardarla: una ficha de /pokemon trae
+ * cientos de KB de historial de movimientos que nadie usa, y sin recortar
+ * bastan unas pocas para llenar la cuota de sessionStorage.
+ */
+async function get<T>(path: string, slim?: (raw: T) => T): Promise<T> {
   if (memory.has(path)) return memory.get(path) as T
 
   if (typeof window !== 'undefined') {
@@ -23,14 +31,27 @@ async function get<T>(path: string): Promise<T> {
     } catch { /* sessionStorage no disponible */ }
   }
 
-  const res = await fetch(`${API}${path}`)
-  if (!res.ok) throw new Error(`PokeAPI ${res.status} en ${path}`)
-  const data = (await res.json()) as T
-  memory.set(path, data)
+  const pending = inflight.get(path)
+  if (pending) return pending as Promise<T>
+
+  const request = (async () => {
+    const res = await fetch(`${API}${path}`)
+    if (!res.ok) throw new Error(`PokeAPI ${res.status} en ${path}`)
+    const raw = (await res.json()) as T
+    const data = slim ? slim(raw) : raw
+    memory.set(path, data)
+    try {
+      window.sessionStorage.setItem('pokeapi:' + path, JSON.stringify(data))
+    } catch { /* cuota llena: la caché en memoria basta */ }
+    return data
+  })()
+
+  inflight.set(path, request)
   try {
-    window.sessionStorage.setItem('pokeapi:' + path, JSON.stringify(data))
-  } catch { /* cuota llena: la caché en memoria basta */ }
-  return data
+    return await request
+  } finally {
+    inflight.delete(path)
+  }
 }
 
 export interface PokemonAbility {
@@ -51,6 +72,8 @@ export interface PokemonDetail {
   height: number
   weight: number
   cry: string | null
+  /** Especie (= nº de Pokédex nacional). Difiere de `id` en las formas: Mega Charizard X es 10034, especie 6. */
+  speciesId?: number
 }
 
 interface RawPokemon {
@@ -63,6 +86,27 @@ interface RawPokemon {
   abilities: { ability: { name: string }; is_hidden: boolean }[]
   moves?: { move: { name: string } }[]
   cries?: { latest?: string | null }
+  species?: { name: string; url: string }
+}
+
+/** Sólo lo que lee esta capa; el resto de la respuesta no se guarda. */
+function slimPokemon(raw: RawPokemon): RawPokemon {
+  return {
+    id: raw.id,
+    name: raw.name,
+    height: raw.height,
+    weight: raw.weight,
+    types: raw.types.map((t) => ({ slot: t.slot, type: { name: t.type.name } })),
+    stats: raw.stats.map((s) => ({ base_stat: s.base_stat, stat: { name: s.stat.name } })),
+    abilities: raw.abilities.map((a) => ({ ability: { name: a.ability.name }, is_hidden: a.is_hidden })),
+    moves: (raw.moves ?? []).map((m) => ({ move: { name: m.move.name } })),
+    cries: { latest: raw.cries?.latest ?? null },
+    species: raw.species ? { name: raw.species.name, url: raw.species.url } : undefined,
+  }
+}
+
+function getRawPokemon(idOrName: number | string) {
+  return get<RawPokemon>(`/pokemon/${idOrName}`, slimPokemon)
 }
 
 const STAT_MAP: Record<string, keyof PokemonDetail['baseStats']> = {
@@ -75,7 +119,7 @@ const STAT_MAP: Record<string, keyof PokemonDetail['baseStats']> = {
 }
 
 export async function getPokemon(idOrName: number | string): Promise<PokemonDetail> {
-  const raw = await get<RawPokemon>(`/pokemon/${idOrName}`)
+  const raw = await getRawPokemon(idOrName)
   const baseStats = { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 }
   for (const s of raw.stats) {
     const key = STAT_MAP[s.stat.name]
@@ -97,11 +141,83 @@ export async function getPokemon(idOrName: number | string): Promise<PokemonDeta
     height: raw.height,
     weight: raw.weight,
     cry: raw.cries?.latest ?? null,
+    speciesId: raw.species ? idFromUrl(raw.species.url) || undefined : undefined,
   }
 }
 
 interface RawSpecies {
   varieties?: { is_default: boolean; pokemon: { name: string } }[]
+}
+
+interface RawSpeciesDetail extends RawSpecies {
+  id: number
+  is_legendary?: boolean
+  is_mythical?: boolean
+  genera?: { genus: string; language: { name: string } }[]
+  flavor_text_entries?: { flavor_text: string; language: { name: string } }[]
+}
+
+export interface SpeciesInfo {
+  /** Nº de la Pokédex nacional (el de la especie, también en las formas). */
+  dexNumber: number
+  /** Categoría en español, p. ej. "Pokémon Ratón". */
+  genus: string | null
+  /** Entrada de la Pokédex en español, en una sola línea. */
+  flavor: string | null
+  legendary: boolean
+  mythical: boolean
+}
+
+// Primero el español de España; el latinoamericano sólo si falta.
+const SPANISH = ['es', 'es-419']
+
+function isSpanish(entry: { language: { name: string } }) {
+  return SPANISH.includes(entry.language.name)
+}
+
+/** Los textos vienen con los saltos de línea de la pantalla de la consola y guiones blandos. */
+function normalizeFlavor(text: string) {
+  return text.replace(/\u00ad\s*/g, '').replace(/\s+/g, ' ').trim()
+}
+
+function slimSpecies(raw: RawSpeciesDetail): RawSpeciesDetail {
+  return {
+    id: raw.id,
+    is_legendary: raw.is_legendary,
+    is_mythical: raw.is_mythical,
+    genera: (raw.genera ?? []).filter(isSpanish),
+    flavor_text_entries: (raw.flavor_text_entries ?? []).filter(isSpanish),
+    varieties: raw.varieties,
+  }
+}
+
+/**
+ * Categoría y entrada de Pokédex en español. Se llega a la especie desde la
+ * ficha (ya en caché si se pidió getPokemon), así las formas alternativas
+ * comparten la descripción de su especie.
+ */
+export async function getSpeciesInfo(pokemonId: number): Promise<SpeciesInfo> {
+  const pokemon = await getRawPokemon(pokemonId)
+  const speciesId = pokemon.species ? idFromUrl(pokemon.species.url) : 0
+  const raw = await get<RawSpeciesDetail>(`/pokemon-species/${speciesId || pokemonId}`, slimSpecies)
+
+  const pick = <T extends { language: { name: string } }>(list: T[] | undefined, latest: boolean) => {
+    for (const lang of SPANISH) {
+      const matches = (list ?? []).filter((e) => e.language.name === lang)
+      if (matches.length) return latest ? matches[matches.length - 1] : matches[0]
+    }
+    return null
+  }
+
+  // La entrada más reciente: los textos de los juegos nuevos están mejor redactados.
+  const flavor = pick(raw.flavor_text_entries, true)
+  return {
+    dexNumber: raw.id,
+    genus: pick(raw.genera, false)?.genus ?? null,
+    flavor: flavor ? normalizeFlavor(flavor.flavor_text) : null,
+    legendary: Boolean(raw.is_legendary),
+    mythical: Boolean(raw.is_mythical),
+  }
 }
 
 /**
@@ -112,7 +228,7 @@ interface RawSpecies {
  */
 async function defaultForm(name: string): Promise<string | null> {
   try {
-    const raw = await get<RawSpecies>(`/pokemon-species/${name}`)
+    const raw = await get<RawSpeciesDetail>(`/pokemon-species/${name}`, slimSpecies)
     return raw.varieties?.find((v) => v.is_default)?.pokemon.name ?? null
   } catch {
     return null

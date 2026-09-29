@@ -11,6 +11,20 @@ export function artworkUrl(pokemonId: number) {
   return `${SPRITE_BASE}/other/official-artwork/${pokemonId}.png`
 }
 
+export function shinyArtworkUrl(pokemonId: number) {
+  return `${SPRITE_BASE}/other/official-artwork/shiny/${pokemonId}.png`
+}
+
+/** Grito del Pokémon. Es la misma URL que da la PokéAPI en `cries.latest`, sin pedir la ficha. */
+export function cryUrl(pokemonId: number) {
+  return `https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/${pokemonId}.ogg`
+}
+
+/** Nº de la Pokédex nacional con cuatro cifras, como en los juegos actuales. */
+export function dexNumber(n: number) {
+  return `Nº ${String(n).padStart(4, '0')}`
+}
+
 export function itemSpriteUrl(item: string | null) {
   if (!item) return null
   return `${SPRITE_BASE.replace('/pokemon', '')}/items/${item}.png`
@@ -63,6 +77,11 @@ export const STAT_LABELS: Record<StatKey, string> = {
   hp: 'HP', atk: 'Atk', def: 'Def', spa: 'SpA', spd: 'SpD', spe: 'Spe',
 }
 
+/** Nombres completos en español: las abreviaturas de Showdown no se leen bien en voz alta. */
+export const STAT_NAMES_ES: Record<StatKey, string> = {
+  hp: 'PS', atk: 'Ataque', def: 'Defensa', spa: 'Ataque Especial', spd: 'Defensa Especial', spe: 'Velocidad',
+}
+
 /** Naturaleza -> [stat que sube, stat que baja]. null = neutra. */
 export const NATURES: Record<string, [StatKey, StatKey] | null> = {
   hardy: null, docile: null, serious: null, bashful: null, quirky: null,
@@ -108,6 +127,20 @@ export const MAX_IV = 31
 
 export function evTotal(evs: Record<StatKey, number>) {
   return STAT_KEYS.reduce((acc, k) => acc + (evs[k] || 0), 0)
+}
+
+/** EVs en notación de Showdown ("252 Atk / 4 SpD / 252 Spe"); cadena vacía si no hay ninguno. */
+export function evSpread(evs: Record<StatKey, number>) {
+  return STAT_KEYS.filter((k) => evs[k] > 0)
+    .map((k) => `${evs[k]} ${STAT_LABELS[k]}`)
+    .join(' / ')
+}
+
+/** IVs que no son perfectos, también en notación de Showdown ("0 Atk / 0 Spe"). */
+export function ivSpread(ivs: Record<StatKey, number>) {
+  return STAT_KEYS.filter((k) => ivs[k] !== MAX_IV)
+    .map((k) => `${ivs[k]} ${STAT_LABELS[k]}`)
+    .join(' / ')
 }
 
 /** Barra de estadística: escala hasta 255 con un tope visual razonable. */

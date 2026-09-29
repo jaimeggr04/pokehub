@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import localFont from 'next/font/local'
 import { themeScript } from '@/components/theme-toggle'
+import { Providers } from '@/components/providers'
 import './globals.css'
 
 // Poppins autoalojada: sin peticiones a Google Fonts, sin salto de maquetación.
@@ -20,9 +21,14 @@ const poppins = localFont({
 
 export const metadata: Metadata = {
   title: { default: 'PokeHub', template: '%s · PokeHub' },
+  applicationName: 'PokeHub',
   description:
     'La red social de entrenadores Pokémon: comparte tus equipos competitivos, descubre builds y habla con la comunidad.',
   icons: { icon: '/pokeball.png' },
+  // Añadida a la pantalla de inicio en iOS se abre a pantalla completa.
+  appleWebApp: { capable: true, title: 'PokeHub', statusBarStyle: 'black-translucent' },
+  // Que iOS no convierta en enlaces de llamada cifras como estadísticas o IVs.
+  formatDetection: { telephone: false },
 }
 
 export const viewport: Viewport = {
@@ -30,15 +36,22 @@ export const viewport: Viewport = {
     { media: '(prefers-color-scheme: light)', color: '#d60a0a' },
     { media: '(prefers-color-scheme: dark)', color: '#8a4dff' },
   ],
+  // Contenido bajo el notch y la barra de inicio; los márgenes los ponen los
+  // env(safe-area-inset-*) de la barra inferior y las hojas.
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={poppins.variable} suppressHydrationWarning>
+    // data-scroll-behavior: Next desactiva el scroll suave durante los cambios
+    // de ruta (si no, cada navegación se desplazaría animada hasta arriba).
+    <html lang="es" className={poppins.variable} data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body>{children}</body>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   )
 }
