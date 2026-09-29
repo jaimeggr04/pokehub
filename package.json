@@ -9,6 +9,11 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@pkmn/client": "^0.7.3",
+    "@pkmn/data": "^0.10.11",
+    "@pkmn/dex": "^0.10.11",
+    "@pkmn/protocol": "^0.7.3",
+    "@smogon/calc": "^0.12.0",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.58.0",
     "clsx": "^2.1.1",

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { motion } from 'motion/react'
-import { Home, MessageSquare, Plus, Search, User, type LucideIcon } from 'lucide-react'
+import { Home, MessageSquare, Plus, Swords, User, type LucideIcon } from 'lucide-react'
 import clsx from 'clsx'
 import { UnreadBadge, useUnreadCount } from '@/components/unread'
 import { isActivePath, useNavTarget } from '@/components/nav-links'
@@ -20,7 +20,8 @@ export function MobileNav({ username }: { username: string }) {
 
   const left: Tab[] = [
     { href: '/home', label: 'Inicio', icon: Home },
-    { href: '/search', label: 'Buscar', icon: Search },
+    // La búsqueda sigue a mano en la lupa de la cabecera móvil.
+    { href: '/battle', label: 'Partida', icon: Swords },
   ]
   const right: Tab[] = [
     { href: '/messages', label: 'Chats', icon: MessageSquare },

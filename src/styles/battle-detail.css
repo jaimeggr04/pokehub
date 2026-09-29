@@ -1,0 +1,521 @@
+/* Asistente de partida: fichas de detalle y calculadora (battle-detail).
+   Ficha de un Pokémon, calculadora rápida, tabla de velocidades y lista del
+   equipo. Todo pensado para leerse de un vistazo en el móvil, con objetivos
+   táctiles de 44 px como mínimo. */
+
+@layer components {
+  /* Color del rival. En claro la marca ya es roja (igual que el peligro), así
+     que el rival va en verde azulado: se distingue de los tuyos y del daño en
+     los dos temas. */
+  :root {
+    --battle-d-foe: #0f766e;
+  }
+  .dark {
+    --battle-d-foe: #2dd4bf;
+  }
+  .battle-d-foe { color: var(--battle-d-foe); }
+
+  /* ---------- Piezas base ---------- */
+
+  /* Panel translúcido: se ve igual sobre la hoja (bg-elevated) que sobre surface. */
+  .battle-d-panel {
+    border-radius: 1rem;
+    padding: .75rem;
+    background-color: color-mix(in srgb, var(--text) 4.5%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 8%, transparent);
+  }
+
+  .battle-d-sprite-well {
+    display: grid;
+    flex-shrink: 0;
+    place-items: center;
+    border-radius: 1.25rem;
+    background:
+      radial-gradient(70% 55% at 50% 80%, color-mix(in srgb, var(--text) 10%, transparent), transparent 70%),
+      color-mix(in srgb, var(--text) 4%, transparent);
+  }
+
+  .battle-d-empty {
+    border-radius: .75rem;
+    padding: .625rem .75rem;
+    font-size: .875rem;
+    color: var(--muted);
+    background-color: color-mix(in srgb, var(--text) 4.5%, transparent);
+  }
+
+  .battle-d-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    height: 1.5rem;
+    padding-inline: .5rem;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    color: var(--text);
+    background-color: color-mix(in srgb, var(--text) 8%, transparent);
+  }
+  .battle-d-chip--good { color: var(--success); background-color: var(--success-soft); }
+  .battle-d-chip--bad { color: var(--danger); background-color: var(--danger-soft); }
+  .battle-d-chip--warn { color: var(--warning); background-color: var(--warning-soft); }
+  .battle-d-chip--brand { color: var(--brand); background-color: var(--brand-soft); }
+
+  /* Interruptor en píldora (ajustes, atajos de vida, objetos alternativos). */
+  .battle-d-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: .375rem;
+    min-height: 2.75rem;
+    padding-inline: .875rem;
+    border-radius: 9999px;
+    font-size: .8125rem;
+    font-weight: 600;
+    white-space: nowrap;
+    color: var(--text);
+    background-color: color-mix(in srgb, var(--text) 6%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 10%, transparent);
+    transition: background-color var(--dur) var(--ease-out-expo), color var(--dur) var(--ease-out-expo), scale var(--dur) var(--ease-out-expo);
+    cursor: pointer;
+  }
+  .battle-d-toggle:active { scale: .96; transition-duration: var(--dur-fast); }
+  .battle-d-toggle[aria-pressed='true'] {
+    color: var(--brand-fg);
+    background-color: var(--brand);
+    box-shadow: var(--shadow);
+  }
+  .battle-d-toggle[aria-pressed='true'] .text-muted { color: inherit; opacity: .85; }
+  .battle-d-toggle:focus-visible,
+  .battle-d-monpick:focus-visible,
+  .battle-d-calcrow:focus-visible,
+  .battle-d-move:focus-visible,
+  .battle-d-roster:focus-visible,
+  .battle-d-term-btn:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+
+  /* ---------- Estado alterado ---------- */
+
+  .battle-d-status {
+    display: inline-flex;
+    align-items: center;
+    height: 1.25rem;
+    padding-inline: .375rem;
+    border-radius: .375rem;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    color: #fff;
+    background-color: #6b7280;
+  }
+  .battle-d-status[data-status='brn'] { background-color: #c2410c; }
+  .battle-d-status[data-status='par'] { background-color: #a16207; }
+  .battle-d-status[data-status='psn'],
+  .battle-d-status[data-status='tox'] { background-color: #7e22ce; }
+  .battle-d-status[data-status='slp'] { background-color: #4b5563; }
+  .battle-d-status[data-status='frz'] { background-color: #0369a1; }
+
+  /* ---------- Vida ---------- */
+
+  .battle-d-hp {
+    position: relative;
+    height: .5rem;
+    overflow: hidden;
+    border-radius: 9999px;
+    background-color: color-mix(in srgb, var(--text) 12%, transparent);
+  }
+  .battle-d-hp--thin { height: .3125rem; }
+  .battle-d-hp-fill {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    transition: width var(--dur-slow) var(--ease-out-expo), background-color var(--dur) linear;
+  }
+  [data-tone='high'].battle-d-hp-fill,
+  [data-tone='high'].battle-d-dmgbar-left { background-color: var(--success); }
+  [data-tone='mid'].battle-d-hp-fill,
+  [data-tone='mid'].battle-d-dmgbar-left { background-color: var(--warning); }
+  [data-tone='low'].battle-d-hp-fill,
+  [data-tone='low'].battle-d-dmgbar-left { background-color: var(--danger); }
+
+  /* Barra de daño: lo que queda, lo que puede quitar (rayado) y lo que quita seguro. */
+  .battle-d-dmgbar {
+    position: relative;
+    height: 1rem;
+    overflow: hidden;
+    border-radius: 9999px;
+    background-color: color-mix(in srgb, var(--text) 12%, transparent);
+  }
+  .battle-d-dmgbar > span {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    transition: left var(--dur-slow) var(--ease-out-expo), width var(--dur-slow) var(--ease-out-expo);
+  }
+  .battle-d-dmgbar-left { left: 0; }
+  .battle-d-dmgbar-maybe,
+  .battle-d-key--maybe {
+    background-color: color-mix(in srgb, var(--danger) 30%, transparent);
+    background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--danger) 55%, transparent) 0 3px, transparent 3px 7px);
+  }
+  .battle-d-dmgbar-sure,
+  .battle-d-key--sure { background-color: color-mix(in srgb, var(--danger) 75%, transparent); }
+  .battle-d-dmgbar-sure[data-ko] { background-color: var(--danger); }
+  .battle-d-key {
+    display: inline-block;
+    width: .625rem;
+    height: .625rem;
+    border-radius: .1875rem;
+    vertical-align: -1px;
+  }
+
+  /* ---------- Titulares de daño ---------- */
+
+  .battle-d-headline {
+    font-size: .9375rem;
+    line-height: 1.3;
+  }
+  .battle-d-headline strong {
+    font-size: 1.375rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+  [data-tone='danger'].battle-d-headline strong,
+  [data-tone='danger'].battle-d-big,
+  .battle-d-calcrow [data-tone='danger'] { color: var(--danger); }
+  [data-tone='warning'].battle-d-headline strong,
+  [data-tone='warning'].battle-d-big,
+  .battle-d-calcrow [data-tone='warning'] { color: var(--warning); }
+
+  .battle-d-result {
+    border-radius: 1.25rem;
+    padding: 1rem;
+    background-color: var(--surface-2);
+    box-shadow: var(--shadow), inset 0 0 0 1px color-mix(in srgb, var(--text) 6%, transparent);
+  }
+  .battle-d-big {
+    font-size: clamp(2.25rem, 11vw, 3rem);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .battle-d-desc summary {
+    min-height: 2.75rem;
+    display: flex;
+    align-items: center;
+    font-size: .8125rem;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .battle-d-desc p {
+    border-radius: .625rem;
+    padding: .5rem .625rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11.5px;
+    line-height: 1.5;
+    word-break: break-word;
+    background-color: color-mix(in srgb, var(--text) 5%, transparent);
+  }
+
+  /* ---------- Quién va antes (ficha) ---------- */
+
+  .battle-d-order {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: .25rem;
+    height: 1.75rem;
+    padding-inline: .625rem;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--warning);
+    background-color: var(--warning-soft);
+  }
+  .battle-d-order[data-order='first'] { color: var(--success); background-color: var(--success-soft); }
+  .battle-d-order[data-order='second'] { color: var(--danger); background-color: var(--danger-soft); }
+
+  /* ---------- Ataques, objetos y habilidades ---------- */
+
+  .battle-d-move {
+    display: flex;
+    align-items: center;
+    gap: .625rem;
+    min-height: 2.75rem;
+    padding: .375rem .5rem .375rem .375rem;
+    border-radius: .75rem;
+    background-color: color-mix(in srgb, var(--text) 4.5%, transparent);
+  }
+  .battle-d-move--probable {
+    background-color: transparent;
+    border: 1px dashed color-mix(in srgb, var(--text) 18%, transparent);
+  }
+  button.battle-d-move { cursor: pointer; }
+  @media (hover: hover) {
+    button.battle-d-move:hover { background-color: color-mix(in srgb, var(--text) 6%, transparent); }
+  }
+  .battle-d-move-type {
+    align-self: stretch;
+    width: .3125rem;
+    flex-shrink: 0;
+    border-radius: 9999px;
+    background-color: var(--type);
+  }
+
+  .battle-d-pctbar {
+    display: block;
+    width: 100%;
+    height: .25rem;
+    overflow: hidden;
+    border-radius: 9999px;
+    background-color: color-mix(in srgb, var(--text) 10%, transparent);
+  }
+  .battle-d-pctbar > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background-color: var(--warning);
+  }
+  .battle-d-calcrow .battle-d-pctbar > span { background-color: var(--danger); }
+
+  .battle-d-statbar {
+    display: block;
+    height: .375rem;
+    overflow: hidden;
+    border-radius: 9999px;
+    background-color: color-mix(in srgb, var(--text) 10%, transparent);
+  }
+  .battle-d-statbar > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background-color: color-mix(in srgb, var(--text) 35%, transparent);
+  }
+  .battle-d-statbar > span[data-invested] { background-color: var(--brand); }
+
+  /* Deslizador de vida con un pulgar grande para el dedo. */
+  .battle-d-range {
+    width: 100%;
+    height: 2.75rem;
+    accent-color: var(--brand);
+    cursor: pointer;
+  }
+
+  /* ---------- Jerga ---------- */
+
+  .battle-d-term { display: inline; }
+  .battle-d-term-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: .1875rem;
+    min-height: 1.5rem;
+    border-radius: .375rem;
+    font: inherit;
+    color: inherit;
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
+    cursor: help;
+    /* Área táctil de 44 px sin descolocar la línea de texto. */
+    position: relative;
+  }
+  .battle-d-term-btn::after {
+    content: '';
+    position: absolute;
+    inset: -.625rem -.25rem;
+  }
+  .battle-d-term-note {
+    display: block;
+    margin-top: .25rem;
+    max-width: 20rem;
+    border-radius: .5rem;
+    padding: .375rem .5rem;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.4;
+    white-space: normal;
+    text-align: left;
+    color: var(--text);
+    background-color: var(--bg-elevated);
+    box-shadow: var(--shadow), inset 0 0 0 1px var(--border);
+  }
+  .battle-d-chip:has(.battle-d-term-note) {
+    height: auto;
+    flex-direction: column;
+    align-items: flex-start;
+    padding-block: .25rem;
+    border-radius: .75rem;
+  }
+
+  /* ---------- Calculadora ---------- */
+
+  .battle-d-monpick {
+    display: flex;
+    flex-shrink: 0;
+    flex-direction: column;
+    align-items: center;
+    gap: .125rem;
+    min-width: 3.5rem;
+    padding: .25rem .375rem .375rem;
+    border-radius: .875rem;
+    background-color: color-mix(in srgb, var(--text) 4.5%, transparent);
+    box-shadow: inset 0 0 0 1px transparent;
+    cursor: pointer;
+  }
+  .battle-d-monpick[aria-pressed='true'] {
+    background-color: var(--brand-soft);
+    box-shadow: inset 0 0 0 2px var(--brand);
+  }
+
+  .battle-d-calcrow {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    align-items: center;
+    gap: .75rem;
+    min-height: 3.25rem;
+    padding: .375rem .75rem;
+    border-radius: .875rem;
+    background-color: color-mix(in srgb, var(--text) 4.5%, transparent);
+    cursor: pointer;
+  }
+  .battle-d-calcrow[aria-pressed='true'] {
+    background-color: var(--brand-soft);
+    box-shadow: inset 0 0 0 1.5px var(--brand);
+  }
+
+  /* ---------- Velocidades ---------- */
+
+  .battle-d-dot {
+    display: inline-block;
+    width: .5rem;
+    height: .5rem;
+    border-radius: 9999px;
+  }
+  .battle-d-dot[data-side='mine'],
+  .battle-d-axis-mark[data-side='mine'] { background-color: var(--brand); }
+  .battle-d-dot[data-side='theirs'],
+  .battle-d-axis-mark[data-side='theirs'] { background-color: var(--battle-d-foe); }
+
+  .battle-d-speedrow {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    min-height: 3.25rem;
+    padding: .375rem .625rem .375rem .25rem;
+    border-radius: .875rem;
+    border-left: 3px solid var(--battle-d-foe);
+    background-color: color-mix(in srgb, var(--battle-d-foe) 6%, transparent);
+  }
+  .battle-d-speedrow[data-side='mine'] {
+    border-left-color: var(--brand);
+    background-color: color-mix(in srgb, var(--brand) 6%, transparent);
+  }
+  .battle-d-speedrow--insight { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--brand) 55%, transparent); }
+
+  .battle-d-axis {
+    position: relative;
+    height: .375rem;
+    border-radius: 9999px;
+    background-color: color-mix(in srgb, var(--text) 9%, transparent);
+  }
+  .battle-d-axis-band {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-radius: 9999px;
+    background-color: color-mix(in srgb, var(--battle-d-foe) 32%, transparent);
+  }
+  .battle-d-axis-mark {
+    position: absolute;
+    top: 50%;
+    width: .75rem;
+    height: .75rem;
+    border-radius: 9999px;
+    translate: -50% -50%;
+    box-shadow: 0 0 0 2px var(--bg-elevated);
+  }
+  .battle-d-axis-mark--scarf {
+    background-color: transparent;
+    box-shadow: inset 0 0 0 2px var(--battle-d-foe);
+  }
+
+  .battle-d-insight {
+    display: flex;
+    gap: .5rem;
+    border-radius: .75rem;
+    padding: .5rem .625rem;
+    font-size: .8125rem;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--text);
+    background-color: var(--brand-soft);
+  }
+  .battle-d-insight svg { color: var(--brand); }
+
+  /* ---------- Lista del equipo ---------- */
+
+  .battle-d-roster {
+    position: relative;
+    display: flex;
+    width: 100%;
+    min-height: 6.5rem;
+    flex-direction: column;
+    align-items: center;
+    gap: .25rem;
+    padding: .5rem .5rem .375rem;
+    border-radius: .875rem;
+    background-color: color-mix(in srgb, var(--text) 4.5%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 7%, transparent);
+    cursor: pointer;
+  }
+  .battle-d-roster[data-active] {
+    background-color: var(--brand-soft);
+    box-shadow: inset 0 0 0 2px var(--brand);
+  }
+  .battle-d-roster[data-side='theirs'][data-active] {
+    background-color: color-mix(in srgb, var(--battle-d-foe) 12%, transparent);
+    box-shadow: inset 0 0 0 2px var(--battle-d-foe);
+  }
+  .battle-d-roster[data-fainted] { opacity: .5; }
+  .battle-d-roster[data-unseen] { opacity: .72; }
+  .battle-d-roster-live,
+  .battle-d-roster-ko {
+    position: absolute;
+    top: .25rem;
+    left: .25rem;
+    z-index: 1;
+    padding: .0625rem .3125rem;
+    border-radius: .3125rem;
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--brand-fg);
+    background-color: var(--brand);
+  }
+  .battle-d-roster[data-side='theirs'] .battle-d-roster-live { background-color: var(--battle-d-foe); color: var(--bg-elevated); }
+  .battle-d-roster-ko { background-color: var(--text); color: var(--bg); }
+  .battle-d-roster-item {
+    position: absolute;
+    right: -.625rem;
+    bottom: -.25rem;
+    scale: .8;
+  }
+  .battle-d-roster-pip {
+    width: .375rem;
+    height: .375rem;
+    border-radius: 9999px;
+    background-color: color-mix(in srgb, var(--text) 16%, transparent);
+  }
+  .battle-d-roster-pip[data-on] { background-color: var(--success); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .battle-d-hp-fill,
+    .battle-d-dmgbar > span,
+    .battle-d-toggle { transition: none; }
+  }
+}

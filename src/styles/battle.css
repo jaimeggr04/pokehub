@@ -1,0 +1,359 @@
+/* Asistente de partida: tablero, fichas y consejos (battle). */
+
+/* En la capa components, como el resto de hojas por área: las utilidades de
+   Tailwind que se pasen en cada sitio siguen ganando a estos estilos base. */
+@layer components {
+  /* ---------- Conexión ---------- */
+
+  /* Punto de "en directo": un halo que se expande y se desvanece. Con
+     movimiento reducido la regla global deja la animación en un fotograma y
+     queda sólo el punto fijo, que ya se entiende por el texto de al lado. */
+  .battle-live-dot {
+    position: relative;
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    flex-shrink: 0;
+    border-radius: 9999px;
+    background-color: currentColor;
+  }
+
+  .battle-live-dot::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-color: currentColor;
+    animation: battle-ping 1.6s var(--ease-out-expo) infinite;
+  }
+
+  @keyframes battle-ping {
+    from { transform: scale(1); opacity: 0.7; }
+    to { transform: scale(2.8); opacity: 0; }
+  }
+
+  /* ---------- Chips del campo ---------- */
+
+  .battle-chip {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 0.375rem;
+    min-height: 2rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.1;
+    white-space: nowrap;
+    background-color: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .battle-chip[data-tone='good'] {
+    background-color: var(--success-soft);
+    border-color: color-mix(in srgb, var(--success) 35%, transparent);
+    color: var(--success);
+  }
+
+  .battle-chip[data-tone='warning'] {
+    background-color: var(--warning-soft);
+    border-color: color-mix(in srgb, var(--warning) 35%, transparent);
+    color: var(--warning);
+  }
+
+  .battle-chip[data-tone='danger'] {
+    background-color: var(--danger-soft);
+    border-color: color-mix(in srgb, var(--danger) 35%, transparent);
+    color: var(--danger);
+  }
+
+  /* Cuenta atrás de turnos dentro del chip: un círculo con el número, que se
+     lee antes que "quedan 3 turnos". */
+  .battle-chip-count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.375rem;
+    height: 1.375rem;
+    padding-inline: 0.25rem;
+    border-radius: 9999px;
+    background-color: currentColor;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
+  /* El número va en el color de fondo sobre el círculo del color del texto. */
+  .battle-chip-count > span {
+    color: var(--bg-elevated);
+  }
+
+  /* ---------- Barra de vida ---------- */
+
+  .battle-hp {
+    position: relative;
+    height: 0.5rem;
+    overflow: hidden;
+    border-radius: 9999px;
+    background-color: color-mix(in srgb, var(--text) 12%, transparent);
+  }
+
+  .battle-hp > span {
+    position: absolute;
+    inset: 0 auto 0 0;
+    border-radius: inherit;
+    background-color: var(--success);
+    transition: width var(--dur-slow) var(--ease-out-expo), background-color var(--dur) ease;
+  }
+
+  .battle-hp[data-level='mid'] > span { background-color: var(--warning); }
+  .battle-hp[data-level='low'] > span { background-color: var(--danger); }
+
+  /* Vida sin ver todavía: rayada, para que no se confunda con "vida llena". */
+  .battle-hp[data-level='unknown'] > span {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      color-mix(in srgb, var(--text) 16%, transparent) 0 6px,
+      transparent 6px 12px
+    );
+    background-color: transparent;
+  }
+
+  /* ---------- Campo ---------- */
+
+  /* El campo imita la pantalla de combate: el rival arriba y tú abajo, con
+     una franja central que separa los dos lados. */
+  .battle-arena {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border-radius: var(--radius-card);
+    border: 1px solid var(--border);
+    background:
+      radial-gradient(80% 60% at 50% 0%, color-mix(in srgb, var(--danger) 7%, transparent), transparent 70%),
+      radial-gradient(80% 60% at 50% 100%, color-mix(in srgb, var(--brand) 8%, transparent), transparent 70%),
+      var(--surface);
+    box-shadow: var(--shadow);
+  }
+
+  .battle-arena-divider {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .battle-arena-divider::before,
+  .battle-arena-divider::after {
+    content: '';
+    height: 1px;
+    flex: 1;
+    background-color: var(--border);
+  }
+
+  /* Tarjeta de un Pokémon en el campo. El borde izquierdo dice de quién es
+     sin tener que leer: rojo peligro para el rival, color de marca para ti. */
+  .battle-mon {
+    position: relative;
+    display: flex;
+    width: 100%;
+    min-height: 6.5rem;
+    flex-direction: column;
+    gap: 0.375rem;
+    padding: 0.5rem 0.625rem 0.625rem;
+    border-radius: 0.875rem;
+    border: 1px solid var(--border);
+    border-left-width: 4px;
+    background-color: var(--bg-elevated);
+    text-align: left;
+    box-shadow: var(--shadow);
+  }
+
+  .battle-mon[data-side='theirs'] { border-left-color: var(--danger); }
+  .battle-mon[data-side='mine'] { border-left-color: var(--brand); }
+
+  .battle-mon[data-fainted='true'] {
+    opacity: 0.55;
+    filter: grayscale(1);
+  }
+
+  .battle-mon:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+
+  .battle-slot-empty {
+    display: grid;
+    width: 100%;
+    min-height: 6.5rem;
+    place-items: center;
+    border-radius: 0.875rem;
+    border: 2px dashed var(--border);
+    color: var(--muted);
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
+  /* ---------- Consejos ---------- */
+
+  .battle-tip {
+    --tip: var(--muted);
+    --tip-soft: color-mix(in srgb, var(--text) 6%, transparent);
+    position: relative;
+    overflow: hidden;
+    border-radius: 0.875rem;
+    border: 1px solid color-mix(in srgb, var(--tip) 30%, var(--border));
+    background-color: var(--bg-elevated);
+    box-shadow: var(--shadow);
+  }
+
+  /* Franja de color a la izquierda: el tono se reconoce aunque no se lea. */
+  .battle-tip::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background-color: var(--tip);
+  }
+
+  .battle-tip[data-tone='danger'] { --tip: var(--danger); --tip-soft: var(--danger-soft); }
+  .battle-tip[data-tone='good'] { --tip: var(--success); --tip-soft: var(--success-soft); }
+  .battle-tip[data-tone='warning'] { --tip: var(--warning); --tip-soft: var(--warning-soft); }
+  .battle-tip[data-tone='info'] { --tip: var(--muted); }
+
+  /* El peligro más urgente se lleva además un fondo tintado. */
+  .battle-tip[data-tone='danger'] {
+    background-image: linear-gradient(90deg, var(--danger-soft), transparent 70%);
+  }
+
+  .battle-tip-icon {
+    display: grid;
+    width: 2.25rem;
+    height: 2.25rem;
+    flex-shrink: 0;
+    place-items: center;
+    border-radius: 9999px;
+    background-color: var(--tip-soft);
+    color: var(--tip);
+  }
+
+  .battle-tip-button:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: -2px;
+    border-radius: 0.875rem;
+  }
+
+  /* ---------- Vista previa ---------- */
+
+  .battle-plan {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-card);
+    border: 1px solid color-mix(in srgb, var(--brand) 35%, var(--border));
+    background:
+      radial-gradient(100% 80% at 0% 0%, var(--brand-soft), transparent 60%),
+      var(--surface);
+    box-shadow: var(--shadow);
+  }
+
+  .battle-rank {
+    display: grid;
+    width: 1.75rem;
+    height: 1.75rem;
+    flex-shrink: 0;
+    place-items: center;
+    border-radius: 9999px;
+    background-color: var(--brand);
+    color: var(--brand-fg);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- Plegables (velocidad, registro) ---------- */
+
+  .battle-fold > summary {
+    display: flex;
+    min-height: 3rem;
+    cursor: pointer;
+    list-style: none;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-card);
+    font-weight: 700;
+    user-select: none;
+  }
+
+  .battle-fold > summary::-webkit-details-marker { display: none; }
+
+  .battle-fold > summary:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: -2px;
+  }
+
+  .battle-fold-chevron {
+    margin-left: auto;
+    color: var(--muted);
+    transition: rotate var(--dur) var(--ease-out-expo);
+  }
+
+  .battle-fold[open] .battle-fold-chevron { rotate: 180deg; }
+
+  /* ---------- Barra de la repetición ---------- */
+
+  /* Pegada abajo, sobre la barra de navegación del móvil: se maneja con el
+     pulgar sin perder de vista el tablero. */
+  .battle-dock {
+    position: sticky;
+    z-index: 30;
+    bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom, 0px) + 0.5rem);
+  }
+
+  @media (min-width: 48rem) {
+    .battle-dock { bottom: 1rem; }
+  }
+
+  .battle-range {
+    width: 100%;
+    height: 2.75rem;
+    cursor: pointer;
+    accent-color: var(--brand);
+    background: transparent;
+  }
+
+  .battle-range:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: 9999px;
+  }
+
+  /* ---------- Resultado ---------- */
+
+  .battle-result {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1.25rem;
+    border: 1px solid var(--border);
+    background-color: var(--surface);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .battle-result[data-outcome='win'] {
+    border-color: color-mix(in srgb, var(--success) 40%, var(--border));
+    background:
+      radial-gradient(90% 90% at 50% 0%, var(--success-soft), transparent 70%),
+      var(--surface);
+  }
+
+  .battle-result[data-outcome='loss'] {
+    background:
+      radial-gradient(90% 90% at 50% 0%, var(--danger-soft), transparent 70%),
+      var(--surface);
+  }
+}
