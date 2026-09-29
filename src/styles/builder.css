@@ -241,6 +241,51 @@
 
   .builder-slot[data-open] .builder-slot-chevron { rotate: 180deg; }
 
+  /* Subir, bajar y quitar: botones de icono compactos. No usan .btn porque a
+     360 px cada píxel de la cabecera cuenta y .btn-icon fija su tamaño. */
+  .builder-icon-btn {
+    display: grid;
+    flex-shrink: 0;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 9999px;
+    color: var(--muted);
+    cursor: pointer;
+    transition-property: scale, background-color, color, opacity;
+    transition-duration: var(--dur);
+    transition-timing-function: var(--ease-out-expo);
+  }
+
+  @media (hover: hover) {
+    .builder-icon-btn:not([aria-disabled='true']):hover {
+      background-color: var(--surface-2);
+      color: var(--text);
+    }
+
+    .builder-icon-btn-danger:not([aria-disabled='true']):hover {
+      background-color: var(--danger-soft);
+      color: var(--danger);
+    }
+  }
+
+  .builder-icon-btn:not([aria-disabled='true']):active {
+    scale: .9;
+    transition-duration: var(--dur-fast);
+  }
+
+  .builder-icon-btn[aria-disabled='true'] {
+    opacity: .35;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 25rem) {
+    .builder-icon-btn {
+      width: 2rem;
+      height: 2rem;
+    }
+  }
+
   .builder-slot-sprite {
     position: relative;
     display: grid;

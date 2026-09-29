@@ -175,6 +175,18 @@ function useUsernameAvailability(username: string): Availability {
 }
 
 const TAKEN_MESSAGE = 'Ese nombre ya lo tiene otro entrenador. Prueba con otro.'
+const USERNAME_RULE = 'De 3 a 20 letras, números o guiones bajos.'
+const INVALID_CHAR_RE = /[^A-Za-z0-9_]/
+
+/** Qué le pasa a un nombre de usuario, dicho de forma que se pueda arreglar. */
+function usernameProblem(name: string): string | undefined {
+  if (/\s/.test(name)) return 'Sin espacios: prueba con guiones bajos (ash_ketchum).'
+  if (/[À-ÿñÑ]/.test(name)) return 'Sin tildes ni eñes: sólo letras de la A a la Z, números y _.'
+  if (INVALID_CHAR_RE.test(name)) return 'Sólo letras, números y guiones bajos (_).'
+  if (name.length < 3) return 'Tiene que tener al menos 3 caracteres.'
+  if (name.length > 20) return 'Como mucho 20 caracteres.'
+  return undefined
+}
 
 export function RegisterForm({
   headingRef,
@@ -194,8 +206,8 @@ export function RegisterForm({
     const name = String(data.get('username') ?? '').trim()
     const mail = String(data.get('email') ?? '').trim()
     const pw = String(data.get('password') ?? '')
-    if (!name) errors.username = 'Elige un nombre de usuario.'
-    else if (!USERNAME_RE.test(name)) errors.username = 'Entre 3 y 20 caracteres: letras, números o _.'
+    const problem = name ? usernameProblem(name) : 'Elige un nombre de usuario.'
+    if (problem) errors.username = problem
     else if (availability === 'taken') errors.username = TAKEN_MESSAGE
     if (!mail) errors.email = 'Escribe tu email.'
     else if (!EMAIL_RE.test(mail)) errors.email = 'Ese email no parece válido.'
@@ -234,11 +246,11 @@ export function RegisterForm({
     )
   }
 
-  // Un nombre con caracteres no válidos se avisa al teclearlo; la longitud
-  // mínima, sólo al enviar (con dos letras aún se está escribiendo).
+  // Un carácter no válido se avisa al teclearlo; la longitud mínima, sólo al
+  // enviar (con dos letras aún se está escribiendo).
   const trimmed = username.trim()
-  const liveUsernameError = /[^A-Za-z0-9_]/.test(trimmed)
-    ? 'Sólo letras sin tildes, números y _ (sin espacios).'
+  const liveUsernameError = INVALID_CHAR_RE.test(trimmed)
+    ? usernameProblem(trimmed)
     : availability === 'taken'
       ? TAKEN_MESSAGE
       : undefined
@@ -334,7 +346,7 @@ function UsernameHint({ availability, username }: { availability: Availability; 
       </span>
     )
   }
-  return <span>Entre 3 y 20 caracteres: letras, números o _.</span>
+  return <span>{USERNAME_RULE}</span>
 }
 
 function AvailabilityIcon({ availability }: { availability: Availability }) {

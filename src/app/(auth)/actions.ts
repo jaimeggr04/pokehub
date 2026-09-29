@@ -138,7 +138,7 @@ export async function signUp(_prev: AuthState, formData: FormData): Promise<Auth
 
   const fieldErrors: AuthState['fieldErrors'] = {}
   if (!USERNAME_RE.test(username)) {
-    fieldErrors.username = 'Entre 3 y 20 caracteres: letras, números o _.'
+    fieldErrors.username = 'De 3 a 20 letras, números o guiones bajos.'
   }
   if (!EMAIL_RE.test(email)) fieldErrors.email = 'Escribe un email válido.'
   if (password.length < 8) fieldErrors.password = 'La contraseña debe tener al menos 8 caracteres.'

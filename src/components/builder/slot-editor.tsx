@@ -239,18 +239,18 @@ export const SlotEditor = memo(function SlotEditor({
               )}
             </span>
 
-            <ChevronDown size={18} aria-hidden className="builder-slot-chevron shrink-0 text-muted" />
+            <ChevronDown size={18} aria-hidden className="builder-slot-chevron shrink-0 text-muted max-[400px]:hidden" />
           </button>
         </h3>
 
-        <div className="flex shrink-0 items-center pt-1.5 max-[400px]:flex-col sm:gap-0.5">
+        <div className="flex shrink-0 items-center gap-0.5 pt-1.5">
           <button
             type="button"
             title="Subir"
             aria-label={`Subir a ${name}`}
             aria-disabled={isFirst}
             onClick={() => !isFirst && onMove(slot.key, -1, cardRef.current)}
-            className="btn btn-ghost btn-icon btn-sm text-muted hover:text-ink"
+            className="builder-icon-btn"
           >
             <ArrowUp size={16} aria-hidden />
           </button>
@@ -260,7 +260,7 @@ export const SlotEditor = memo(function SlotEditor({
             aria-label={`Bajar a ${name}`}
             aria-disabled={isLast}
             onClick={() => !isLast && onMove(slot.key, 1, cardRef.current)}
-            className="btn btn-ghost btn-icon btn-sm text-muted hover:text-ink"
+            className="builder-icon-btn"
           >
             <ArrowDown size={16} aria-hidden />
           </button>
@@ -270,7 +270,7 @@ export const SlotEditor = memo(function SlotEditor({
               title="Quitar del equipo"
               aria-label={`Quitar a ${name} del equipo`}
               onClick={() => onRemove(slot.key)}
-              className="btn btn-ghost btn-icon btn-sm text-muted hover:text-danger"
+              className="builder-icon-btn builder-icon-btn-danger"
             >
               <Trash2 size={16} aria-hidden />
             </button>

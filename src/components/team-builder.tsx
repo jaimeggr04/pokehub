@@ -50,7 +50,7 @@ function isRedirect(error: unknown) {
   )
 }
 
-type FocusTarget = { kind: 'card'; key: string } | { kind: 'undo' } | { kind: 'notice' }
+type FocusTarget = { kind: 'card'; key: string } | { kind: 'undo' } | { kind: 'notice' } | { kind: 'import' }
 
 /* --------------------------------- Componente -------------------------------- */
 
@@ -90,12 +90,20 @@ export function TeamBuilder({
   const [analysisOpen, setAnalysisOpen] = useState(false)
 
   const importId = useId()
+  const importButtonRef = useRef<HTMLButtonElement>(null)
   const nameRef = useRef<HTMLInputElement>(null)
   const undoRef = useRef<HTMLButtonElement>(null)
   const noticeRef = useRef<HTMLDivElement>(null)
   const analysisRef = useRef<HTMLElement>(null)
   const cards = useRef(new Map<string, HTMLElement>())
   const pendingFocus = useRef<FocusTarget | null>(null)
+  // Fuerza un render aunque nada más cambie: así el foco pendiente nunca se
+  // queda esperando y salta más tarde, en mitad de otra cosa.
+  const [, setFocusTick] = useState(0)
+  const requestFocus = useCallback((target: FocusTarget) => {
+    pendingFocus.current = target
+    setFocusTick((n) => n + 1)
+  }, [])
 
   // Copias para los manejadores estables (los editores van memoizados).
   const slotsRef = useRef(slots)
@@ -144,6 +152,7 @@ export function TeamBuilder({
     pendingFocus.current = null
     if (target.kind === 'undo') undoRef.current?.focus({ preventScroll: true })
     else if (target.kind === 'notice') noticeRef.current?.focus({ preventScroll: true })
+    else if (target.kind === 'import') importButtonRef.current?.focus({ preventScroll: true })
     else cards.current.get(target.key)?.querySelector<HTMLElement>('[data-slot-toggle]')?.focus({ preventScroll: true })
   })
 
@@ -181,21 +190,21 @@ export function TeamBuilder({
       }
       // Al plegar desde abajo del panel, la cabecera puede haber quedado por
       // encima de la pantalla: se vuelve a ella y se le devuelve el foco.
-      pendingFocus.current = { kind: 'card', key }
+      requestFocus({ kind: 'card', key })
       const el = cards.current.get(key)
       if (el && el.getBoundingClientRect().top < topObstruction()) scrollToCard(key)
     },
-    [scrollToCard],
+    [scrollToCard, requestFocus],
   )
 
   const selectSlot = useCallback(
     (key: string) => {
       setOpenKey(key)
       setJustAdded(null)
-      pendingFocus.current = { kind: 'card', key }
+      requestFocus({ kind: 'card', key })
       scrollToCard(key)
     },
-    [scrollToCard],
+    [scrollToCard, requestFocus],
   )
 
   const addSlot = useCallback(() => {
@@ -219,13 +228,13 @@ export function TeamBuilder({
       setOpenKey(next.key)
       if (next.pokemon_id) {
         setJustAdded(null)
-        pendingFocus.current = { kind: 'card', key: next.key }
+        requestFocus({ kind: 'card', key: next.key })
       } else {
         setJustAdded(next.key)
       }
       scrollToCard(next.key)
     },
-    [addSlot, scrollToCard],
+    [addSlot, scrollToCard, requestFocus],
   )
 
   // La tarjeta pulsada se queda bajo el dedo y es la vecina la que da la
@@ -252,20 +261,20 @@ export function TeamBuilder({
     // Un hueco vacío no merece "deshacer": se va y el foco pasa al vecino.
     if (slot.pokemon_id) {
       setRemoved({ slot, index })
-      pendingFocus.current = { kind: 'undo' }
+      requestFocus({ kind: 'undo' })
     } else {
       setRemoved(null)
       const neighbour = rest[Math.min(index, rest.length - 1)]
-      if (neighbour) pendingFocus.current = { kind: 'card', key: neighbour.key }
+      if (neighbour) requestFocus({ kind: 'card', key: neighbour.key })
     }
-  }, [])
+  }, [requestFocus])
 
   function undoRemove() {
     if (!removed || slots.length >= MAX_SLOTS) return
     const { slot, index } = removed
     setSlots((prev) => (prev.length >= MAX_SLOTS ? prev : [...prev.slice(0, index), slot, ...prev.slice(index)]))
     setRemoved(null)
-    pendingFocus.current = { kind: 'card', key: slot.key }
+    requestFocus({ kind: 'card', key: slot.key })
   }
 
   useEffect(() => {
@@ -470,7 +479,7 @@ export function TeamBuilder({
     }
     setNotice(partes)
     // El panel desaparece con el foco dentro: pasa al aviso, que se lee entero.
-    pendingFocus.current = { kind: 'notice' }
+    requestFocus({ kind: 'notice' })
   }
 
   /* --------------------------------- Guardar --------------------------------- */
@@ -655,6 +664,7 @@ export function TeamBuilder({
 
         <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
           <button
+            ref={importButtonRef}
             type="button"
             aria-expanded={importOpen}
             aria-controls={importId}
@@ -692,7 +702,14 @@ export function TeamBuilder({
             className="-mx-2 overflow-hidden px-2"
           >
             <div className="pb-5 pt-0.5">
-              <ImportPanel filledCount={filled.length} onImport={importShowdown} onClose={() => setImportOpen(false)} />
+              <ImportPanel
+                filledCount={filled.length}
+                onImport={importShowdown}
+                onClose={() => {
+                  setImportOpen(false)
+                  requestFocus({ kind: 'import' })
+                }}
+              />
             </div>
           </motion.div>
         )}

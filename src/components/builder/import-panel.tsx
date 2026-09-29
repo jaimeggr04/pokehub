@@ -78,7 +78,16 @@ export function ImportPanel({
   }
 
   return (
-    <section aria-labelledby={`${id}-title`} className="card builder-import p-4 sm:p-5">
+    <section
+      aria-labelledby={`${id}-title`}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' && !busy) {
+          e.stopPropagation()
+          onClose()
+        }
+      }}
+      className="card builder-import p-4 sm:p-5"
+    >
       <div className="mb-3 flex items-start gap-3">
         <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-2xl bg-brand text-brand-fg shadow-card">
           <Download size={19} />
