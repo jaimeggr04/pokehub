@@ -1,4 +1,3 @@
-import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import type { BuildRow } from '@/lib/database.types'
 
