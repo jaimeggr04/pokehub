@@ -1,6 +1,6 @@
 node_modules
 .next
-.next-dev
+.next-*/
 out
 build
 .DS_Store
