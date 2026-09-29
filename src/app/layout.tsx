@@ -19,7 +19,16 @@ const poppins = localFont({
   fallback: ['ui-sans-serif', 'system-ui', 'sans-serif'],
 })
 
+// Base de las URL absolutas de las etiquetas para compartir (la imagen de
+// opengraph-image). En Vercel, sin NEXT_PUBLIC_SITE_URL, vale su dominio de producción.
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : 'http://localhost:3000')
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: { default: 'PokeHub', template: '%s · PokeHub' },
   applicationName: 'PokeHub',
   description:
