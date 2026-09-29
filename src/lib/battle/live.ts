@@ -38,6 +38,8 @@ export type MonState = {
   boosts: Partial<Record<BoostStat, number>>
   /** Ha salido al campo al menos una vez (en VGC se eligen 4 de 6). */
   brought: boolean
+  /** Turno en que entró al campo por última vez (Fake Out sólo vale en el primero). */
+  activeSince: number | null
 }
 
 export type SideConditionId = 'tailwind' | 'reflect' | 'lightscreen' | 'auroraveil' | 'safeguard' | 'mist'
@@ -299,6 +301,7 @@ export class BattleTracker {
         if (gender) mon.gender = gender
         mon.brought = true
         mon.boosts = {}
+        mon.activeSince = s.turn
         if (species.includes('-Mega')) mon.mega = true
         const cond = parseCondition(c)
         if (cond) Object.assign(mon, cond)
@@ -536,6 +539,7 @@ function newMon(species: string, level: number, gender: MonState['gender']): Mon
     tera: null,
     boosts: {},
     brought: false,
+    activeSince: null,
   }
 }
 
