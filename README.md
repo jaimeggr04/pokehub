@@ -17,9 +17,14 @@ descúbrelos de otros y coméntalos.
 - **Importar y exportar de Pokémon Showdown**, incluyendo equipos en español y
   formatos irregulares (líneas en blanco de más, movimientos sin guion, nombres
   traducidos a mano). Ver [Importador](#importador-de-showdown).
+- **Análisis del equipo**: tabla de debilidades y resistencias de tipo, velocidad
+  y medias de estadísticas, en la ficha del equipo y en vivo en el creador.
+- **Búsqueda** de entrenadores y de equipos, por nombre o por los Pokémon que
+  llevan (también con su nombre en español: «colmilargo» encuentra a Great Tusk).
 - **Social**: seguir entrenadores, me gusta, comentarios, compartir y mensajería
   privada en tiempo real.
-- **Cuentas** con email y contraseña, o con Google y GitHub.
+- **Cuentas** con email y contraseña, o con Google y GitHub, y recuperación de la
+  contraseña por correo.
 - **Tema claro y oscuro**: el modo claro se viste de Pokéball y el oscuro de
   Master Ball.
 
@@ -83,16 +88,31 @@ En el panel de Supabase, *Authentication*:
 Los botones de Google y GitHub sólo aparecen habilitados si el proveedor está
 activo: la app consulta `/auth/v1/settings` y avisa en vez de dejar un botón roto.
 
+**Recuperar la contraseña** (`/forgot-password` → correo → `/reset-password`):
+el enlace vuelve por `/auth/callback`, así que esa ruta tiene que estar permitida
+en *Redirect URLs* (`https://tu-dominio/auth/callback**`). Con la plantilla de
+correo por defecto el enlace sólo funciona en el navegador donde se pidió. Para
+que sirva desde cualquiera, cambia la plantilla *Reset Password* por:
+
+```html
+<a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password">
+  Crear una contraseña nueva
+</a>
+```
+
 ## Estructura
 
 ```
 src/
   app/
-    (auth)/          login y registro
+    (auth)/          login, registro y recuperación de contraseña
+    (public)/        páginas que se leen con o sin cuenta (aviso legal)
     (app)/           feed, perfiles, equipos, búsqueda, mensajes, ajustes
     auth/callback/   canje del código OAuth por sesión
     actions/         Server Actions (perfil, cuenta, equipos, social)
   components/        UI (creador de equipos, selectores, pokéball, social…)
+    ui/              piezas compartidas: avatar, hojas, toasts, esqueletos…
+  styles/            una hoja por zona (feed, team, builder, search…)
   lib/
     supabase/        clientes de navegador, servidor y middleware
     pokeapi.ts       cliente de PokéAPI con caché en memoria + sessionStorage
