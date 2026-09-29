@@ -147,9 +147,10 @@ export default async function ProfilePage({
                 </span>
               )}
             </div>
-            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted">
+            {/* Sin "·" entre ambos: al bajar de línea se quedaría colgando. El
+                icono del calendario ya hace de separador. */}
+            <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-muted">
               <span className="font-semibold [overflow-wrap:anywhere]">@{person.username}</span>
-              <span aria-hidden>·</span>
               <span className="inline-flex items-center gap-1.5">
                 <CalendarDays size={14} aria-hidden className="shrink-0" />
                 <span>
