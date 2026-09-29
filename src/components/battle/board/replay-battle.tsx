@@ -21,15 +21,6 @@ import { useMySide, useMyTeam } from '@/components/battle/board/use-my-side'
 
 type Loaded = { formatId: string; snapshots: BattleState[] }
 
-/**
- * Las instantáneas se toman justo antes de la línea "|turn|N", cuando el
- * contador aún marca N-1. En directo, al decidir el turno N el estado ya dice
- * N; se corrige aquí para que Fake Out y las cuentas atrás cuadren igual.
- */
-function alignTurns(snapshots: BattleState[]) {
-  return snapshots.map((s) => (s.phase === 'battle' ? { ...s, turn: s.turn + 1 } : s))
-}
-
 function stepLabel(s: BattleState) {
   if (s.phase === 'preview') return 'Vista previa'
   if (s.phase === 'ended') return 'Final'
@@ -58,7 +49,7 @@ export function ReplayBattle({
         setFailed(true)
         return
       }
-      setLoaded({ formatId: replay.formatId, snapshots: alignTurns(replaySnapshots(replay.id, replay.log)) })
+      setLoaded({ formatId: replay.formatId, snapshots: replaySnapshots(replay.id, replay.log) })
       setFailed(false)
       setStep(0)
     })

@@ -36,7 +36,16 @@ export function replaySnapshots(roomId: string, log: string): BattleState[] {
   const tracker = new BattleTracker(roomId)
   const snapshots: BattleState[] = []
   for (const line of log.split('\n')) {
-    if (line.startsWith('|turn|') || line.startsWith('|start')) snapshots.push(structuredClone(tracker.state))
+    if (line.startsWith('|turn|')) {
+      // El estado al decidir el turno N ya dice N, como en directo (Fake Out y
+      // las cuentas atrás dependen de ello).
+      const snap = structuredClone(tracker.state)
+      snap.turn = Number(line.split('|')[2]) || snap.turn + 1
+      snap.phase = 'battle'
+      snapshots.push(snap)
+    } else if (line.startsWith('|start')) {
+      snapshots.push(structuredClone(tracker.state))
+    }
     tracker.line(line)
   }
   snapshots.push(structuredClone(tracker.state))
